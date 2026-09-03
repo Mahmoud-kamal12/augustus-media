@@ -38,7 +38,7 @@ class DatabaseSeeder extends Seeder
     {
         Schema::disableForeignKeyConstraints();
 
-        foreach (['personal_access_tokens', 'likes', 'follows', 'posts', 'users'] as $table) {
+        foreach (['personal_access_tokens', 'notifications', 'likes', 'follows', 'posts', 'users'] as $table) {
             DB::table($table)->truncate();
         }
 
