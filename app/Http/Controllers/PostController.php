@@ -15,9 +15,7 @@ use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
 {
-    public function __construct(private LikeService $likes)
-    {
-    }
+    public function __construct(private LikeService $likes) {}
 
     public function store(StorePostRequest $request): JsonResponse
     {

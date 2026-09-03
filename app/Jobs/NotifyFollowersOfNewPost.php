@@ -19,9 +19,7 @@ class NotifyFollowersOfNewPost implements ShouldQueue
 
     public int $timeout = 120;
 
-    public function __construct(public int $postId)
-    {
-    }
+    public function __construct(public int $postId) {}
 
     public function handle(): void
     {

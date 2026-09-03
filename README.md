@@ -1,66 +1,254 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Augustus Media Backend Task
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel API for a high-traffic social feed similar to Twitter or Instagram.
 
-## About Laravel
+The implementation focuses on the required domain only: users can register, login, follow other users, create/delete posts, like/unlike posts, and fetch a newest-first feed from followed users. The feed avoids N+1 queries, uses cursor pagination, caches hot reads in Redis, and dispatches follower notifications through a queue.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Laravel 12, PHP 8.3 FPM
+- MySQL 8.4
+- Redis for cache and queue
+- Laravel Sanctum bearer tokens
+- Nginx reverse proxy
+- Docker Compose with app, nginx, mysql, redis, and queue services
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Quick Start
 
-## Learning Laravel
+```bash
+cp .env.example .env
+docker compose build
+docker compose up -d
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --seed --force
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+On Windows PowerShell, replace the first command with:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```powershell
+Copy-Item .env.example .env
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+The API runs at:
 
-## Laravel Sponsors
+```text
+http://localhost:8080
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Default seed credentials:
 
-### Premium Partners
+```text
+demo@example.com / password
+augustus-news@example.com / password
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+## Tests
 
-## Contributing
+```bash
+docker compose exec app php artisan test
+docker compose exec app ./vendor/bin/pint --test
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The PHPUnit suite uses SQLite in-memory, array cache, and sync queue mode so tests are isolated from the local MySQL seed.
 
-## Code of Conduct
+## Seed Data
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The seeder is configurable for local smoke tests and larger query-plan checks.
 
-## Security Vulnerabilities
+```bash
+docker compose exec -e SEED_USERS=10000 -e SEED_POSTS=100000 -e SEED_FOLLOWS=200000 -e SEED_LIKES=500000 app php artisan db:seed --force
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Defaults:
 
-## License
+```text
+SEED_USERS=10000
+SEED_POSTS=100000
+SEED_FOLLOWS=200000
+SEED_LIKES=500000
+SEED_CHUNK_SIZE=1000
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The seed creates a demo user, a high-followed "Augustus News" user, skewed follow data, and a viral post so feed and like queries have realistic hot rows.
+
+## API
+
+Unauthenticated:
+
+```text
+POST /register
+POST /login
+GET  /posts/{post}
+```
+
+Authenticated with `Authorization: Bearer <token>`:
+
+```text
+GET    /feed
+POST   /follow/{user_id}
+DELETE /follow/{user_id}
+POST   /posts
+DELETE /posts/{post}
+POST   /posts/{post}/like
+DELETE /posts/{post}/like
+GET    /user
+```
+
+`GET /feed` accepts:
+
+```text
+per_page: 1..50, default 20
+cursor: returned by meta.next_cursor or meta.previous_cursor
+```
+
+Example feed response:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "content": "A fast-moving regional story is gathering a huge response across the network.",
+      "author": {
+        "id": 2,
+        "name": "Augustus News"
+      },
+      "likes_count": 10000,
+      "is_liked": true,
+      "created_at": "2026-09-03T21:08:13.000000Z"
+    }
+  ],
+  "meta": {
+    "per_page": 20,
+    "next_cursor": "eyJjcmVhdGVkX2F0Ijoi...",
+    "previous_cursor": null,
+    "has_more_pages": true
+  }
+}
+```
+
+## Schema and Indexes
+
+`users`
+
+- Required fields only: `id`, `name`, `email`, `password`, timestamps.
+- Unique index on `email`.
+
+`posts`
+
+- `id`, `user_id`, `content`, timestamps.
+- Foreign key `user_id -> users.id`.
+- Composite index `(user_id, created_at, id)` supports fetching posts for followed authors in reverse chronological order.
+
+`follows`
+
+- `follower_id`, `followed_id`, `created_at`.
+- Composite primary key `(follower_id, followed_id)` prevents duplicate follows and supports "who do I follow?" lookups.
+- Reverse index `(followed_id, follower_id)` supports follower notification fan-out.
+
+`likes`
+
+- `post_id`, `user_id`, `created_at`.
+- Composite primary key `(post_id, user_id)` prevents duplicate likes and supports batched like counts by post.
+- MySQL's foreign key index on `user_id` is used for batched "did current user like these posts?" lookups.
+
+`notifications`
+
+- Laravel database notification records written asynchronously by the queue worker.
+
+## Feed Design
+
+This version uses fan-out on read:
+
+```sql
+SELECT posts.*
+FROM posts
+JOIN follows ON follows.followed_id = posts.user_id
+WHERE follows.follower_id = ?
+ORDER BY posts.created_at DESC, posts.id DESC
+LIMIT ?
+```
+
+The API uses cursor pagination instead of offset pagination. This avoids deep-page offset scans and remains stable while new posts are inserted.
+
+N+1 prevention:
+
+- Authors are eager loaded with `author:id,name`.
+- Like counts are fetched in one grouped query for the current page.
+- Current user's liked post ids are fetched in one query for the current page.
+
+## Caching
+
+Redis cache is used for:
+
+- Like count keys: `likes_count:{post_id}`, 10 second TTL.
+- Default first feed page: `feed:first-page:user:{id}:v1`, 30 second TTL.
+
+Invalidation:
+
+- `like` and `unlike` forget the post's like count.
+- `like` and `unlike` also forget the current user's first feed page because `is_liked` changes.
+- `follow` and `unfollow` forget the current user's first feed page because membership changes.
+- New posts do not invalidate every follower's feed cache. At high scale that becomes expensive, so follower feeds rely on the short TTL unless a future fan-out-on-write feed table is introduced.
+
+## Queue Notifications
+
+Post creation dispatches `NotifyFollowersOfNewPost` with `afterCommit()` so followers are notified only after the post transaction commits.
+
+The job:
+
+- Reads follower ids in chunks of 1000.
+- Inserts database notifications in bulk.
+- Uses deterministic notification ids derived from `(post_id, follower_id)` so retries are idempotent.
+- Uses the `(followed_id, follower_id)` index to avoid scanning the full follows table.
+
+## Local Query Plan Notes
+
+Measured on MySQL 8.4 with the default seed: 10,000 users, 100,000 posts, 200,000 follows, 500,000 likes.
+
+Feed first page for demo user:
+
+```text
+follows PRIMARY lookup: follower_id=1, 266 rows
+posts index lookup: posts_user_id_created_at_id_index, 12,390 candidate posts
+top-N sort by posts.created_at desc, posts.id desc
+actual time: about 24.5 ms
+```
+
+Cursor page after the first page:
+
+```text
+same join path with index condition on created_at/id cursor
+actual time: about 31.1 ms
+```
+
+Batched like counts for 20 feed posts:
+
+```text
+covering PRIMARY range scan on likes(post_id, user_id)
+10,095 matching like rows because the seed includes a viral post
+actual time: about 2.5 ms
+```
+
+Batched current-user liked state for 20 feed posts:
+
+```text
+covering range scan on MySQL's user_id foreign key index
+actual time: about 0.03 ms
+```
+
+These numbers are good enough for the assignment implementation. The feed query still performs a top-N sort across candidate posts from followed users, which is the expected trade-off for fan-out on read.
+
+## Scaling Path
+
+For the stated 5M users and 500k posts/day target, this code is a clean starting point rather than the final production architecture.
+
+Next steps at scale:
+
+- Add read replicas for feed and post reads.
+- Move Redis to a managed cluster and add observability around hit rate and hot keys.
+- Split queue workers by priority, with separate lanes for notifications and any future feed materialization work.
+- Introduce a hybrid feed model: fan-out on write for normal users into a `feed_items` table or Redis sorted set, while keeping fan-out on read for celebrity accounts with very high follower counts.
+- Partition or shard high-growth tables such as `posts`, `likes`, and `notifications` by time or id range when single-node indexes no longer fit memory.
+- Add backpressure and rate limits for high-volume authors and like storms.
+- Store approximate counters for extremely hot posts, periodically reconciled from the authoritative likes table.

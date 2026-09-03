@@ -11,9 +11,7 @@ class NewPostNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(private Post $post)
-    {
-    }
+    public function __construct(private Post $post) {}
 
     public function via(object $notifiable): array
     {

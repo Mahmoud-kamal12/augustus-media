@@ -10,9 +10,7 @@ use Illuminate\Pagination\CursorPaginator;
 
 class FeedController extends Controller
 {
-    public function __construct(private FeedService $feed)
-    {
-    }
+    public function __construct(private FeedService $feed) {}
 
     public function index(Request $request): JsonResponse
     {

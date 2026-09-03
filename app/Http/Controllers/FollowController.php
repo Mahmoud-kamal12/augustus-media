@@ -11,9 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class FollowController extends Controller
 {
-    public function __construct(private FeedService $feeds)
-    {
-    }
+    public function __construct(private FeedService $feeds) {}
 
     public function store(int $user_id): JsonResponse
     {

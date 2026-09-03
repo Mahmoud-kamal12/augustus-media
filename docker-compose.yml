@@ -46,6 +46,7 @@ services:
     build:
       context: .
     command: php artisan queue:work --sleep=1 --tries=3 --timeout=60
+    restart: unless-stopped
     volumes:
       - .:/var/www/html
     depends_on:

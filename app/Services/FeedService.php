@@ -13,9 +13,7 @@ class FeedService
 
     private const FIRST_PAGE_TTL_SECONDS = 30;
 
-    public function __construct(private LikeService $likes)
-    {
-    }
+    public function __construct(private LikeService $likes) {}
 
     public function followedPosts(User $user, int $perPage): CursorPaginator
     {

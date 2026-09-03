@@ -61,6 +61,7 @@ class LikeService
         foreach ($keys as $key => $id) {
             if ($cached[$key] !== null) {
                 $counts[$id] = (int) $cached[$key];
+
                 continue;
             }
 
