@@ -6,13 +6,19 @@ use App\Http\Requests\StorePostRequest;
 use App\Http\Resources\PostResource;
 use App\Jobs\NotifyFollowersOfNewPost;
 use App\Models\Post;
+use App\Services\LikeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
 {
+    public function __construct(private LikeService $likes)
+    {
+    }
+
     public function store(StorePostRequest $request): JsonResponse
     {
         $post = DB::transaction(function () use ($request) {
@@ -23,6 +29,9 @@ class PostController extends Controller
             return $post;
         });
 
+        $post->likes_count = 0;
+        $post->is_liked = false;
+
         return (new PostResource($post->load('author')))
             ->response()
             ->setStatusCode(201);
@@ -30,7 +39,15 @@ class PostController extends Controller
 
     public function show(Post $post): PostResource
     {
-        return new PostResource($post->load('author'));
+        $post->load('author');
+        $post->likes_count = $this->likes->countsFor([$post->id])[$post->id];
+
+        $user = Auth::guard('sanctum')->user();
+        $post->is_liked = $user
+            ? in_array($post->id, $this->likes->likedPostIds($user, [$post->id]), true)
+            : false;
+
+        return new PostResource($post);
     }
 
     public function destroy(Post $post): Response
