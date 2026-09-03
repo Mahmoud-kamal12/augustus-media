@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class PostResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'content' => $this->content,
+            'author' => [
+                'id' => $this->author->id,
+                'name' => $this->author->name,
+            ],
+            'likes_count' => $this->when(isset($this->likes_count), (int) $this->likes_count),
+            'is_liked' => $this->when(isset($this->is_liked), (bool) $this->is_liked),
+            'created_at' => $this->created_at?->toISOString(),
+        ];
+    }
+}
