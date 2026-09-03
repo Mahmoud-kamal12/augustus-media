@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\PostController;
@@ -17,6 +18,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/posts/{post}', [PostController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/feed', [FeedController::class, 'index']);
+
     Route::post('/follow/{user_id}', [FollowController::class, 'store']);
     Route::delete('/follow/{user_id}', [FollowController::class, 'destroy']);
 
