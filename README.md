@@ -101,6 +101,8 @@ per_page: 1..50, default 20
 cursor: returned by meta.next_cursor or meta.previous_cursor
 ```
 
+`likes_count` is a short-TTL visible counter and can lag behind writes by a few seconds. `is_liked` is returned from the authenticated user's current database state.
+
 Example feed response:
 
 ```json
@@ -186,8 +188,9 @@ Redis cache is used for:
 
 Invalidation:
 
-- `like` and `unlike` forget the post's like count.
-- `like` and `unlike` also forget the current user's first feed page because `is_liked` changes.
+- `like` and `unlike` do not forget the global post like-count key on every write.
+- Like counts are allowed to be a few seconds behind reality; the short TTL avoids cache thrashing on viral posts.
+- `like` and `unlike` forget the current user's first feed page because `is_liked` changes.
 - `follow` and `unfollow` forget the current user's first feed page because membership changes.
 - New posts do not invalidate every follower's feed cache. At high scale that becomes expensive, so follower feeds rely on the short TTL unless a future fan-out-on-write feed table is introduced.
 
@@ -238,6 +241,16 @@ actual time: about 0.03 ms
 ```
 
 These numbers are good enough for the assignment implementation. The feed query still performs a top-N sort across candidate posts from followed users, which is the expected trade-off for fan-out on read.
+
+## Trade-offs
+
+- No microservices: the task is about relational feed design, query planning, cache strategy, and Laravel code quality.
+- No precomputed feed table in the first version: fan-out on read keeps writes simple and avoids storage amplification before it is proven necessary.
+- No global like-count cache invalidation on every like/unlike: viral posts would repeatedly destroy their hottest cache key.
+- No denormalized `likes_count` on `posts`: it would turn viral posts into hot write rows.
+- No extra database indexes beyond the measured access paths: redundant indexes slow writes and increase storage.
+- No cache entry for every cursor page: the first page carries the highest repeated-read value.
+- No complex distributed cache locks yet: batched Redis reads plus one grouped SQL query for misses are enough for this scope.
 
 ## Scaling Path
 

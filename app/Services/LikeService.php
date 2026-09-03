@@ -14,31 +14,19 @@ class LikeService
 
     public function like(User $user, Post $post): bool
     {
-        $inserted = DB::table('likes')->insertOrIgnore([
+        return DB::table('likes')->insertOrIgnore([
             'post_id' => $post->id,
             'user_id' => $user->id,
             'created_at' => now(),
         ]) === 1;
-
-        if ($inserted) {
-            Cache::forget($this->countKey($post->id));
-        }
-
-        return $inserted;
     }
 
     public function unlike(User $user, Post $post): bool
     {
-        $deleted = DB::table('likes')
+        return DB::table('likes')
             ->where('post_id', $post->id)
             ->where('user_id', $user->id)
             ->delete() > 0;
-
-        if ($deleted) {
-            Cache::forget($this->countKey($post->id));
-        }
-
-        return $deleted;
     }
 
     public function countsFor(iterable $postIds): array
