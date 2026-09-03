@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\FeedService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class FollowController extends Controller
 {
+    public function __construct(private FeedService $feeds)
+    {
+    }
+
     public function store(int $user_id): JsonResponse
     {
         $currentUser = request()->user();
@@ -21,11 +26,15 @@ class FollowController extends Controller
             ]);
         }
 
-        DB::table('follows')->insertOrIgnore([
+        $inserted = DB::table('follows')->insertOrIgnore([
             'follower_id' => $currentUser->id,
             'followed_id' => $targetUser->id,
             'created_at' => now(),
         ]);
+
+        if ($inserted === 1) {
+            $this->feeds->forgetFirstPage($currentUser);
+        }
 
         return response()->json([
             'followed' => true,
@@ -37,10 +46,14 @@ class FollowController extends Controller
         $currentUser = request()->user();
         User::query()->findOrFail($user_id);
 
-        DB::table('follows')
+        $deleted = DB::table('follows')
             ->where('follower_id', $currentUser->id)
             ->where('followed_id', $user_id)
             ->delete();
+
+        if ($deleted > 0) {
+            $this->feeds->forgetFirstPage($currentUser);
+        }
 
         return response()->noContent();
     }

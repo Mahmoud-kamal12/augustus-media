@@ -5,9 +5,14 @@ namespace App\Services;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Pagination\CursorPaginator;
+use Illuminate\Support\Facades\Cache;
 
 class FeedService
 {
+    public const DEFAULT_PER_PAGE = 20;
+
+    private const FIRST_PAGE_TTL_SECONDS = 30;
+
     public function __construct(private LikeService $likes)
     {
     }
@@ -34,5 +39,27 @@ class FeedService
         });
 
         return $paginator;
+    }
+
+    /**
+     * @param  callable(): array  $callback
+     */
+    public function cachedFirstPage(User $user, callable $callback): array
+    {
+        return Cache::remember(
+            $this->firstPageKey($user),
+            self::FIRST_PAGE_TTL_SECONDS,
+            $callback
+        );
+    }
+
+    public function forgetFirstPage(User $user): void
+    {
+        Cache::forget($this->firstPageKey($user));
+    }
+
+    private function firstPageKey(User $user): string
+    {
+        return "feed:first-page:user:{$user->id}:v1";
     }
 }
