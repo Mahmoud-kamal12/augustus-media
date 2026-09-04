@@ -11,7 +11,7 @@ class NewPostNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(private Post $post) {}
+    public function __construct(private readonly Post $post) {}
 
     public function via(object $notifiable): array
     {
@@ -20,10 +20,10 @@ class NewPostNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        return self::payload($this->post);
+        return self::databaseData($this->post);
     }
 
-    public static function payload(Post $post): array
+    public static function databaseData(Post $post): array
     {
         return [
             'post_id' => $post->id,

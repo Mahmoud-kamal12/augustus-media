@@ -8,14 +8,14 @@ use App\Jobs\NotifyFollowersOfNewPost;
 use App\Models\Post;
 use App\Services\LikeService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
 {
-    public function __construct(private LikeService $likes) {}
+    public function __construct(private readonly LikeService $likeService) {}
 
     public function store(StorePostRequest $request): JsonResponse
     {
@@ -35,15 +35,13 @@ class PostController extends Controller
             ->setStatusCode(201);
     }
 
-    public function show(Post $post): PostResource
+    public function show(Request $request, Post $post): PostResource
     {
         $post->load('author');
-        $post->likes_count = $this->likes->countsFor([$post->id])[$post->id];
+        $post->likes_count = $this->likeService->countFor($post);
 
-        $user = Auth::guard('sanctum')->user();
-        $post->is_liked = $user
-            ? in_array($post->id, $this->likes->likedPostIds($user, [$post->id]), true)
-            : false;
+        $user = $request->user('sanctum');
+        $post->is_liked = $user ? $this->likeService->isLikedBy($post, $user) : false;
 
         return new PostResource($post);
     }

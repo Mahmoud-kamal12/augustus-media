@@ -13,13 +13,12 @@ class NotifyFollowersOfNewPost implements ShouldQueue
 {
     use Queueable;
 
-    private const CHUNK_SIZE = 1000;
-
-    public int $tries = 3;
-
-    public int $timeout = 120;
-
     public function __construct(public int $postId) {}
+
+    public function tries(): int
+    {
+        return config('feed.notifications.tries');
+    }
 
     public function handle(): void
     {
@@ -31,7 +30,7 @@ class NotifyFollowersOfNewPost implements ShouldQueue
             return;
         }
 
-        $payload = json_encode(NewPostNotification::payload($post), JSON_THROW_ON_ERROR);
+        $notificationDataJson = json_encode(NewPostNotification::databaseData($post), JSON_THROW_ON_ERROR);
         $lastFollowerId = 0;
 
         while (true) {
@@ -39,26 +38,30 @@ class NotifyFollowersOfNewPost implements ShouldQueue
                 ->where('followed_id', $post->user_id)
                 ->where('follower_id', '>', $lastFollowerId)
                 ->orderBy('follower_id')
-                ->limit(self::CHUNK_SIZE)
+                ->limit($this->notificationChunkSize())
                 ->pluck('follower_id');
 
             if ($followerIds->isEmpty()) {
                 return;
             }
 
-            $now = now()->toDateTimeString();
-            $rows = $followerIds->map(fn (int $followerId): array => [
-                'id' => $this->notificationId($post->id, $followerId),
-                'type' => NewPostNotification::class,
-                'notifiable_type' => User::class,
-                'notifiable_id' => $followerId,
-                'data' => $payload,
-                'read_at' => null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])->all();
+            $createdAt = now()->toDateTimeString();
+            $notificationRows = [];
 
-            DB::table('notifications')->insertOrIgnore($rows);
+            foreach ($followerIds as $followerId) {
+                $notificationRows[] = [
+                    'id' => $this->notificationId($post->id, $followerId),
+                    'type' => NewPostNotification::class,
+                    'notifiable_type' => User::class,
+                    'notifiable_id' => $followerId,
+                    'data' => $notificationDataJson,
+                    'read_at' => null,
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
+                ];
+            }
+
+            DB::table('notifications')->insertOrIgnore($notificationRows);
 
             $lastFollowerId = (int) $followerIds->last();
         }
@@ -76,5 +79,10 @@ class NotifyFollowersOfNewPost implements ShouldQueue
             substr($hash, 16, 4),
             substr($hash, 20)
         );
+    }
+
+    private function notificationChunkSize(): int
+    {
+        return config('feed.notifications.chunk_size');
     }
 }

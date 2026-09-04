@@ -2,33 +2,33 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Support\BulkInserter;
-use Database\Seeders\Support\SeedSettings;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class PostSeeder extends Seeder
 {
-    public function run(): void
+    public function run(int $postCount, int $userCount, int $chunkSize): void
     {
-        $settings = SeedSettings::fromConfig();
-        $writer = new BulkInserter('posts', $settings->chunkSize);
         $baseTime = now()->timestamp;
+        $postRows = [];
 
-        for ($id = 1; $id <= $settings->posts; $id++) {
-            $createdAt = date('Y-m-d H:i:s', $baseTime - ($id * 37 % (45 * 24 * 60 * 60)));
+        for ($postId = 1; $postId <= $postCount; $postId++) {
+            $createdAt = date('Y-m-d H:i:s', $baseTime - ($postId * 37 % (45 * 24 * 60 * 60)));
 
-            $writer->add([
-                'id' => $id,
-                'user_id' => $this->authorIdFor($id, $settings->users),
-                'content' => $this->contentFor($id),
+            $postRows[] = [
+                'id' => $postId,
+                'user_id' => $this->authorIdFor($postId, $userCount),
+                'content' => $this->contentFor($postId),
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
-            ]);
+            ];
 
-            $writer->flushIfFull();
+            if (count($postRows) >= $chunkSize) {
+                $this->insertPostRows($postRows);
+            }
         }
 
-        $writer->flush();
+        $this->insertPostRows($postRows);
     }
 
     private function authorIdFor(int $postId, int $userCount): int
@@ -47,5 +47,15 @@ class PostSeeder extends Seeder
         }
 
         return "Seed post {$postId} covering local news, culture, business, and daily updates.";
+    }
+
+    private function insertPostRows(array &$postRows): void
+    {
+        if ($postRows === []) {
+            return;
+        }
+
+        DB::table('posts')->insert($postRows);
+        $postRows = [];
     }
 }

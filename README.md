@@ -96,8 +96,8 @@ Authenticated with `Authorization: Bearer <token>`:
 
 ```text
 GET    /feed
-POST   /follow/{user_id}
-DELETE /follow/{user_id}
+POST   /follow/{user}
+DELETE /follow/{user}
 POST   /posts
 DELETE /posts/{post}
 POST   /posts/{post}/like

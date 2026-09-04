@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -27,77 +26,106 @@ class LikeService
             ->delete() > 0;
     }
 
-    public function countsFor(iterable $postIds): array
+    public function countFor(Post $post): int
     {
-        $ids = $this->postIds($postIds);
+        return $this->countsFor([$post->id])[$post->id] ?? 0;
+    }
 
-        if ($ids->isEmpty()) {
+    public function countsFor(array $postIds): array
+    {
+        $postIdsToCount = $this->cleanPostIds($postIds);
+
+        if ($postIdsToCount === []) {
             return [];
         }
 
-        $keys = $ids->mapWithKeys(fn (int $id) => [$this->countKey($id) => $id]);
-        $cached = Cache::many($keys->keys()->all());
-        $counts = [];
-        $missingIds = [];
+        $cacheKeysByPostId = $this->cacheKeysByPostId($postIdsToCount);
+        $cachedCountsByKey = Cache::many(array_values($cacheKeysByPostId));
+        $likeCountsByPostId = [];
+        $postIdsMissingFromCache = [];
 
-        foreach ($keys as $key => $id) {
-            if ($cached[$key] !== null) {
-                $counts[$id] = (int) $cached[$key];
+        foreach ($cacheKeysByPostId as $postId => $cacheKey) {
+            if ($cachedCountsByKey[$cacheKey] !== null) {
+                $likeCountsByPostId[$postId] = (int) $cachedCountsByKey[$cacheKey];
 
                 continue;
             }
 
-            $missingIds[] = $id;
+            $postIdsMissingFromCache[] = $postId;
         }
 
-        if ($missingIds !== []) {
-            $freshCounts = DB::table('likes')
+        if ($postIdsMissingFromCache !== []) {
+            $databaseCountsByPostId = DB::table('likes')
                 ->select('post_id', DB::raw('COUNT(*) as likes_count'))
-                ->whereIn('post_id', $missingIds)
+                ->whereIn('post_id', $postIdsMissingFromCache)
                 ->groupBy('post_id')
-                ->pluck('likes_count', 'post_id');
+                ->pluck('likes_count', 'post_id')
+                ->all();
 
             $valuesToCache = [];
 
-            foreach ($missingIds as $id) {
-                $count = (int) $freshCounts->get($id, 0);
-                $counts[$id] = $count;
-                $valuesToCache[$this->countKey($id)] = $count;
+            foreach ($postIdsMissingFromCache as $postId) {
+                $likeCount = (int) ($databaseCountsByPostId[$postId] ?? 0);
+                $likeCountsByPostId[$postId] = $likeCount;
+                $valuesToCache[$cacheKeysByPostId[$postId]] = $likeCount;
             }
 
             Cache::putMany($valuesToCache, config('feed.cache.like_count_ttl'));
         }
 
-        return $counts;
+        return $likeCountsByPostId;
     }
 
-    public function likedPostIds(User $user, iterable $postIds): array
+    public function isLikedBy(Post $post, User $user): bool
     {
-        $ids = $this->postIds($postIds);
+        return in_array($post->id, $this->likedPostIds($user, [$post->id]), true);
+    }
 
-        if ($ids->isEmpty()) {
+    public function likedPostIds(User $user, array $postIds): array
+    {
+        $postIdsToCheck = $this->cleanPostIds($postIds);
+
+        if ($postIdsToCheck === []) {
             return [];
         }
 
-        return DB::table('likes')
+        $likedPostIds = DB::table('likes')
             ->where('user_id', $user->id)
-            ->whereIn('post_id', $ids)
+            ->whereIn('post_id', $postIdsToCheck)
             ->pluck('post_id')
-            ->map(fn ($id) => (int) $id)
             ->all();
+
+        return $this->cleanPostIds($likedPostIds);
     }
 
-    private function countKey(int $postId): string
+    private function cacheKeysByPostId(array $postIds): array
+    {
+        $cacheKeysByPostId = [];
+
+        foreach ($postIds as $postId) {
+            $cacheKeysByPostId[$postId] = $this->likeCountCacheKey($postId);
+        }
+
+        return $cacheKeysByPostId;
+    }
+
+    private function likeCountCacheKey(int $postId): string
     {
         return "likes_count:{$postId}";
     }
 
-    private function postIds(iterable $postIds): Collection
+    private function cleanPostIds(array $postIds): array
     {
-        return Collection::make($postIds)
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
+        $cleanPostIds = [];
+
+        foreach ($postIds as $postId) {
+            $postId = (int) $postId;
+
+            if ($postId > 0) {
+                $cleanPostIds[$postId] = $postId;
+            }
+        }
+
+        return array_values($cleanPostIds);
     }
 }

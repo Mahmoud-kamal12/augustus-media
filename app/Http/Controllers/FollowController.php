@@ -4,33 +4,30 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\FeedCache;
+use App\Services\FollowService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class FollowController extends Controller
 {
-    public function __construct(private FeedCache $feedCache) {}
+    public function __construct(
+        private readonly FollowService $followService,
+        private readonly FeedCache $feedCache,
+    ) {}
 
-    public function store(int $user_id): JsonResponse
+    public function store(Request $request, User $userToFollow): JsonResponse
     {
-        $currentUser = request()->user();
-        $targetUser = User::query()->findOrFail($user_id);
+        $currentUser = $request->user();
 
-        if ($currentUser->is($targetUser)) {
+        if ($currentUser->is($userToFollow)) {
             throw ValidationException::withMessages([
                 'user_id' => ['You cannot follow yourself.'],
             ]);
         }
 
-        $inserted = DB::table('follows')->insertOrIgnore([
-            'follower_id' => $currentUser->id,
-            'followed_id' => $targetUser->id,
-            'created_at' => now(),
-        ]);
-
-        if ($inserted === 1) {
+        if ($this->followService->follow($currentUser, $userToFollow)) {
             $this->feedCache->forgetFirstPage($currentUser);
         }
 
@@ -39,17 +36,11 @@ class FollowController extends Controller
         ]);
     }
 
-    public function destroy(int $user_id): Response
+    public function destroy(Request $request, User $userToUnfollow): Response
     {
-        $currentUser = request()->user();
-        User::query()->findOrFail($user_id);
+        $currentUser = $request->user();
 
-        $deleted = DB::table('follows')
-            ->where('follower_id', $currentUser->id)
-            ->where('followed_id', $user_id)
-            ->delete();
-
-        if ($deleted > 0) {
+        if ($this->followService->unfollow($currentUser, $userToUnfollow)) {
             $this->feedCache->forgetFirstPage($currentUser);
         }
 

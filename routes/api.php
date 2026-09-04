@@ -20,8 +20,8 @@ Route::get('/posts/{post}', [PostController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/feed', [FeedController::class, 'index']);
 
-    Route::post('/follow/{user_id}', [FollowController::class, 'store']);
-    Route::delete('/follow/{user_id}', [FollowController::class, 'destroy']);
+    Route::post('/follow/{userToFollow}', [FollowController::class, 'store']);
+    Route::delete('/follow/{userToUnfollow}', [FollowController::class, 'destroy']);
 
     Route::post('/posts', [PostController::class, 'store']);
     Route::delete('/posts/{post}', [PostController::class, 'destroy']);

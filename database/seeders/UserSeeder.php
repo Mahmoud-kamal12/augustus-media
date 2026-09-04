@@ -2,34 +2,34 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Support\BulkInserter;
-use Database\Seeders\Support\SeedSettings;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
-    public function run(): void
+    public function run(int $userCount, int $chunkSize): void
     {
-        $settings = SeedSettings::fromConfig();
-        $writer = new BulkInserter('users', $settings->chunkSize);
         $password = Hash::make('password');
-        $now = now()->toDateTimeString();
+        $createdAt = now()->toDateTimeString();
+        $userRows = [];
 
-        for ($id = 1; $id <= $settings->users; $id++) {
-            $writer->add([
-                'id' => $id,
-                'name' => $this->nameFor($id),
-                'email' => $this->emailFor($id),
+        for ($userId = 1; $userId <= $userCount; $userId++) {
+            $userRows[] = [
+                'id' => $userId,
+                'name' => $this->nameFor($userId),
+                'email' => $this->emailFor($userId),
                 'password' => $password,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ];
 
-            $writer->flushIfFull();
+            if (count($userRows) >= $chunkSize) {
+                $this->insertUserRows($userRows);
+            }
         }
 
-        $writer->flush();
+        $this->insertUserRows($userRows);
     }
 
     private function nameFor(int $id): string
@@ -48,5 +48,15 @@ class UserSeeder extends Seeder
             2 => 'augustus-news@example.com',
             default => "user{$id}@example.com",
         };
+    }
+
+    private function insertUserRows(array &$userRows): void
+    {
+        if ($userRows === []) {
+            return;
+        }
+
+        DB::table('users')->insert($userRows);
+        $userRows = [];
     }
 }

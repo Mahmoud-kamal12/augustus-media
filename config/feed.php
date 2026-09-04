@@ -8,6 +8,11 @@ return [
 
     'cache' => [
         'first_page_ttl' => (int) env('FEED_FIRST_PAGE_TTL', 30),
-        'like_count_ttl' => (int) env('LIKE_COUNT_TTL', 10),
+        'like_count_ttl' => (int) env('FEED_LIKE_COUNT_TTL', 10),
+    ],
+
+    'notifications' => [
+        'chunk_size' => (int) env('NOTIFICATION_CHUNK_SIZE', 1000),
+        'tries' => (int) env('NOTIFICATION_JOB_TRIES', 3),
     ],
 ];

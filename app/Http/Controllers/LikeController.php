@@ -6,41 +6,42 @@ use App\Models\Post;
 use App\Services\FeedCache;
 use App\Services\LikeService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class LikeController extends Controller
 {
     public function __construct(
-        private LikeService $likes,
-        private FeedCache $feedCache,
+        private readonly LikeService $likeService,
+        private readonly FeedCache $feedCache,
     ) {}
 
-    public function store(Post $post): JsonResponse
+    public function store(Request $request, Post $post): JsonResponse
     {
-        $user = request()->user();
+        $user = $request->user();
 
-        if ($this->likes->like($user, $post)) {
+        if ($this->likeService->like($user, $post)) {
             $this->feedCache->forgetFirstPage($user);
         }
 
         return response()->json([
             'liked' => true,
             'is_liked' => true,
-            'likes_count' => $this->likes->countsFor([$post->id])[$post->id],
+            'likes_count' => $this->likeService->countFor($post),
         ]);
     }
 
-    public function destroy(Post $post): JsonResponse
+    public function destroy(Request $request, Post $post): JsonResponse
     {
-        $user = request()->user();
+        $user = $request->user();
 
-        if ($this->likes->unlike($user, $post)) {
+        if ($this->likeService->unlike($user, $post)) {
             $this->feedCache->forgetFirstPage($user);
         }
 
         return response()->json([
             'liked' => false,
             'is_liked' => false,
-            'likes_count' => $this->likes->countsFor([$post->id])[$post->id],
+            'likes_count' => $this->likeService->countFor($post),
         ]);
     }
 }

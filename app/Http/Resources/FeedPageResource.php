@@ -7,12 +7,7 @@ use Illuminate\Pagination\CursorPaginator;
 
 class FeedPageResource
 {
-    public function __construct(private CursorPaginator $paginator) {}
-
-    public static function make(CursorPaginator $paginator): self
-    {
-        return new self($paginator);
-    }
+    public function __construct(private readonly CursorPaginator $paginator) {}
 
     public function toArray(Request $request): array
     {

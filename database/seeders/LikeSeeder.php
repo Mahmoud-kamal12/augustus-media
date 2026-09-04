@@ -2,67 +2,78 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Support\BulkInserter;
-use Database\Seeders\Support\SeedSettings;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class LikeSeeder extends Seeder
 {
-    public function run(): void
+    public function run(int $postCount, int $userCount, int $requiredLikeCount, int $chunkSize): void
     {
-        $settings = SeedSettings::fromConfig();
-
-        if ($settings->likes === 0) {
+        if ($requiredLikeCount === 0) {
             return;
         }
 
-        $writer = new BulkInserter('likes', $settings->chunkSize, ignoreDuplicates: true);
-        $inserted = 0;
-        $now = now()->toDateTimeString();
-        $viralLikes = min($settings->users, max(1000, intdiv(max(1, $settings->likes), 10)));
+        $likeRows = [];
+        $likeRowsCreated = 0;
+        $createdAt = now()->toDateTimeString();
+        $firstPostLikeCount = min($userCount, max(1000, intdiv(max(1, $requiredLikeCount), 10)));
 
-        for ($userId = 1; $userId <= $viralLikes && $inserted < $settings->likes; $userId++) {
-            $inserted += $this->queueLike($writer, $settings, $inserted, 1, $userId, $now);
+        for ($userId = 1; $userId <= $firstPostLikeCount && $likeRowsCreated < $requiredLikeCount; $userId++) {
+            $this->addLikeRow($likeRows, 1, $userId, $createdAt, $chunkSize);
+            $likeRowsCreated++;
         }
 
-        for ($offset = 1; $inserted < $settings->likes; $offset++) {
-            if ($offset > $settings->users) {
+        for ($likeDistance = 1; $likeRowsCreated < $requiredLikeCount; $likeDistance++) {
+            if ($likeDistance > $userCount) {
                 throw new RuntimeException('Unable to generate the configured number of unique likes.');
             }
 
-            for ($postId = 1; $postId <= $settings->posts && $inserted < $settings->likes; $postId++) {
-                $userId = $this->userIdFor($postId, $offset, $settings->users);
-                $inserted += $this->queueLike($writer, $settings, $inserted, $postId, $userId, $now);
+            for ($postId = 1; $postId <= $postCount && $likeRowsCreated < $requiredLikeCount; $postId++) {
+                $userId = $this->userIdFor($postId, $likeDistance, $userCount);
+
+                if ($postId === 1 && $userId <= $firstPostLikeCount) {
+                    continue;
+                }
+
+                $this->addLikeRow($likeRows, $postId, $userId, $createdAt, $chunkSize);
+                $likeRowsCreated++;
             }
         }
 
-        $writer->flush();
+        $this->insertLikeRows($likeRows);
     }
 
-    private function queueLike(
-        BulkInserter $writer,
-        SeedSettings $settings,
-        int $inserted,
+    private function addLikeRow(
+        array &$likeRows,
         int $postId,
         int $userId,
         string $createdAt,
-    ): int {
-        if ($inserted >= $settings->likes) {
-            return 0;
-        }
-
-        $writer->add([
+        int $chunkSize,
+    ): void {
+        $likeRows[] = [
             'post_id' => $postId,
             'user_id' => $userId,
             'created_at' => $createdAt,
-        ]);
+        ];
 
-        return $writer->flushIfFull($settings->likes - $inserted);
+        if (count($likeRows) >= $chunkSize) {
+            $this->insertLikeRows($likeRows);
+        }
     }
 
-    private function userIdFor(int $postId, int $offset, int $userCount): int
+    private function userIdFor(int $postId, int $likeDistance, int $userCount): int
     {
-        return (($postId + $offset - 1) % $userCount) + 1;
+        return (($postId + $likeDistance - 1) % $userCount) + 1;
+    }
+
+    private function insertLikeRows(array &$likeRows): void
+    {
+        if ($likeRows === []) {
+            return;
+        }
+
+        DB::table('likes')->insertOrIgnore($likeRows);
+        $likeRows = [];
     }
 }

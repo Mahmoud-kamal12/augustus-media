@@ -11,23 +11,30 @@ use Illuminate\Http\JsonResponse;
 class FeedController extends Controller
 {
     public function __construct(
-        private FeedService $feed,
-        private FeedCache $cache,
+        private readonly FeedService $feedService,
+        private readonly FeedCache $feedCache,
     ) {}
 
     public function index(FeedRequest $request): JsonResponse
     {
-        $payload = $request->usesFirstPageCache()
-            ? $this->cache->rememberFirstPage($request->user(), fn (): array => $this->payload($request))
-            : $this->payload($request);
+        if ($request->shouldUseFirstPageCache()) {
+            $responseBody = $this->feedCache->rememberFirstPage(
+                $request->user(),
+                function () use ($request): array {
+                    return $this->buildResponseBody($request);
+                }
+            );
 
-        return response()->json($payload);
+            return response()->json($responseBody);
+        }
+
+        return response()->json($this->buildResponseBody($request));
     }
 
-    private function payload(FeedRequest $request): array
+    private function buildResponseBody(FeedRequest $request): array
     {
-        return FeedPageResource::make(
-            $this->feed->followedPosts($request->user(), $request->perPage())
-        )->toArray($request);
+        return (new FeedPageResource(
+            $this->feedService->followedPosts($request->user(), $request->perPage())
+        ))->toArray($request);
     }
 }

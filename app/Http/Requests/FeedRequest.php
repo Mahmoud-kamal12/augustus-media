@@ -23,7 +23,7 @@ class FeedRequest extends FormRequest
         return $this->integer('per_page', $this->defaultPerPage());
     }
 
-    public function usesFirstPageCache(): bool
+    public function shouldUseFirstPageCache(): bool
     {
         return $this->perPage() === $this->defaultPerPage()
             && ! $this->query->has('cursor');

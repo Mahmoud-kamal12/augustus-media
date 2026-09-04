@@ -2,70 +2,85 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Support\BulkInserter;
-use Database\Seeders\Support\SeedSettings;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class FollowSeeder extends Seeder
 {
-    public function run(): void
+    public function run(int $userCount, int $requiredFollowCount, int $chunkSize): void
     {
-        $settings = SeedSettings::fromConfig();
-
-        if ($settings->follows === 0) {
+        if ($requiredFollowCount === 0) {
             return;
         }
 
-        $writer = new BulkInserter('follows', $settings->chunkSize, ignoreDuplicates: true);
-        $inserted = 0;
-        $now = now()->toDateTimeString();
+        $followRows = [];
+        $specialFollowPairs = [];
+        $followRowsCreated = 0;
+        $createdAt = now()->toDateTimeString();
 
-        for ($followedId = 2; $followedId <= min($settings->users, 251) && $inserted < $settings->follows; $followedId++) {
-            $inserted += $this->queueFollow($writer, $settings, $inserted, 1, $followedId, $now);
+        for ($followedUserId = 2; $followedUserId <= min($userCount, 251) && $followRowsCreated < $requiredFollowCount; $followedUserId++) {
+            $this->addFollowRow($followRows, 1, $followedUserId, $createdAt, $chunkSize);
+            $specialFollowPairs[1][$followedUserId] = true;
+            $followRowsCreated++;
         }
 
-        for ($followerId = 3; $followerId <= $settings->users && $inserted < $settings->follows; $followerId++) {
-            $inserted += $this->queueFollow($writer, $settings, $inserted, $followerId, 2, $now);
+        for ($followerUserId = 3; $followerUserId <= $userCount && $followRowsCreated < $requiredFollowCount; $followerUserId++) {
+            $this->addFollowRow($followRows, $followerUserId, 2, $createdAt, $chunkSize);
+            $specialFollowPairs[$followerUserId][2] = true;
+            $followRowsCreated++;
         }
 
-        for ($offset = 1; $inserted < $settings->follows; $offset++) {
-            if ($offset >= $settings->users) {
+        for ($followDistance = 1; $followRowsCreated < $requiredFollowCount; $followDistance++) {
+            if ($followDistance >= $userCount) {
                 throw new RuntimeException('Unable to generate the configured number of unique follows.');
             }
 
-            for ($followerId = 1; $followerId <= $settings->users && $inserted < $settings->follows; $followerId++) {
-                $followedId = $this->followedIdFor($followerId, $offset, $settings->users);
-                $inserted += $this->queueFollow($writer, $settings, $inserted, $followerId, $followedId, $now);
+            for ($followerUserId = 1; $followerUserId <= $userCount && $followRowsCreated < $requiredFollowCount; $followerUserId++) {
+                $followedUserId = $this->followedUserIdFor($followerUserId, $followDistance, $userCount);
+
+                if (isset($specialFollowPairs[$followerUserId][$followedUserId])) {
+                    continue;
+                }
+
+                $this->addFollowRow($followRows, $followerUserId, $followedUserId, $createdAt, $chunkSize);
+                $followRowsCreated++;
             }
         }
 
-        $writer->flush();
+        $this->insertFollowRows($followRows);
     }
 
-    private function queueFollow(
-        BulkInserter $writer,
-        SeedSettings $settings,
-        int $inserted,
-        int $followerId,
-        int $followedId,
+    private function addFollowRow(
+        array &$followRows,
+        int $followerUserId,
+        int $followedUserId,
         string $createdAt,
-    ): int {
-        if ($inserted >= $settings->follows || $followerId === $followedId) {
-            return 0;
+        int $chunkSize,
+    ): void {
+        $followRows[] = [
+            'follower_id' => $followerUserId,
+            'followed_id' => $followedUserId,
+            'created_at' => $createdAt,
+        ];
+
+        if (count($followRows) >= $chunkSize) {
+            $this->insertFollowRows($followRows);
+        }
+    }
+
+    private function followedUserIdFor(int $followerUserId, int $followDistance, int $userCount): int
+    {
+        return (($followerUserId + $followDistance - 1) % $userCount) + 1;
+    }
+
+    private function insertFollowRows(array &$followRows): void
+    {
+        if ($followRows === []) {
+            return;
         }
 
-        $writer->add([
-            'follower_id' => $followerId,
-            'followed_id' => $followedId,
-            'created_at' => $createdAt,
-        ]);
-
-        return $writer->flushIfFull($settings->follows - $inserted);
-    }
-
-    private function followedIdFor(int $followerId, int $offset, int $userCount): int
-    {
-        return (($followerId + $offset - 1) % $userCount) + 1;
+        DB::table('follows')->insertOrIgnore($followRows);
+        $followRows = [];
     }
 }

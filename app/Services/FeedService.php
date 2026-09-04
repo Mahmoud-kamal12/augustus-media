@@ -8,7 +8,7 @@ use Illuminate\Pagination\CursorPaginator;
 
 class FeedService
 {
-    public function __construct(private LikeService $likes) {}
+    public function __construct(private readonly LikeService $likeService) {}
 
     public function followedPosts(User $user, int $perPage): CursorPaginator
     {
@@ -22,13 +22,13 @@ class FeedService
             ->cursorPaginate($perPage);
 
         $posts = $paginator->getCollection();
-        $postIds = $posts->pluck('id')->all();
-        $counts = $this->likes->countsFor($postIds);
-        $likedIds = array_flip($this->likes->likedPostIds($user, $postIds));
+        $postIds = $posts->modelKeys();
+        $likeCountsByPostId = $this->likeService->countsFor($postIds);
+        $likedPostIds = array_flip($this->likeService->likedPostIds($user, $postIds));
 
-        $posts->each(function (Post $post) use ($counts, $likedIds): void {
-            $post->likes_count = $counts[$post->id] ?? 0;
-            $post->is_liked = isset($likedIds[$post->id]);
+        $posts->each(function (Post $post) use ($likeCountsByPostId, $likedPostIds): void {
+            $post->likes_count = $likeCountsByPostId[$post->id] ?? 0;
+            $post->is_liked = isset($likedPostIds[$post->id]);
         });
 
         return $paginator;

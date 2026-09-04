@@ -23,16 +23,62 @@ class DatabaseSeeder extends Seeder
         DB::disableQueryLog();
         Cache::flush();
 
+        $userCount = $this->userCountFromConfig();
+        $postCount = $this->postCountFromConfig();
+        $insertChunkSize = $this->insertChunkSizeFromConfig();
+
         $this->truncateSeededTables();
 
-        $this->call([
-            UserSeeder::class,
-            PostSeeder::class,
-            FollowSeeder::class,
-            LikeSeeder::class,
+        $this->callWith(UserSeeder::class, [
+            'userCount' => $userCount,
+            'chunkSize' => $insertChunkSize,
         ]);
 
-        $this->printCounts();
+        $this->callWith(PostSeeder::class, [
+            'postCount' => $postCount,
+            'userCount' => $userCount,
+            'chunkSize' => $insertChunkSize,
+        ]);
+
+        $this->callWith(FollowSeeder::class, [
+            'userCount' => $userCount,
+            'requiredFollowCount' => $this->followCountFromConfig($userCount),
+            'chunkSize' => $insertChunkSize,
+        ]);
+
+        $this->callWith(LikeSeeder::class, [
+            'postCount' => $postCount,
+            'userCount' => $userCount,
+            'requiredLikeCount' => $this->likeCountFromConfig($postCount, $userCount),
+            'chunkSize' => $insertChunkSize,
+        ]);
+
+        $this->printSeedSummary();
+    }
+
+    private function userCountFromConfig(): int
+    {
+        return max(2, config('seeding.users'));
+    }
+
+    private function postCountFromConfig(): int
+    {
+        return max(1, config('seeding.posts'));
+    }
+
+    private function followCountFromConfig(int $userCount): int
+    {
+        return max(0, min(config('seeding.follows'), $userCount * ($userCount - 1)));
+    }
+
+    private function likeCountFromConfig(int $postCount, int $userCount): int
+    {
+        return max(0, min(config('seeding.likes'), $postCount * $userCount));
+    }
+
+    private function insertChunkSizeFromConfig(): int
+    {
+        return max(100, config('seeding.chunk_size'));
     }
 
     private function truncateSeededTables(): void
@@ -48,7 +94,7 @@ class DatabaseSeeder extends Seeder
         Schema::enableForeignKeyConstraints();
     }
 
-    private function printCounts(): void
+    private function printSeedSummary(): void
     {
         foreach (['users', 'posts', 'follows', 'likes'] as $table) {
             $this->command?->info(sprintf('%s: %s', $table, DB::table($table)->count()));
