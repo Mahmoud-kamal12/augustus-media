@@ -7,9 +7,9 @@ use App\Models\Follow;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\CursorPaginator;
+use Illuminate\Support\Collection;
 
 class UserFeedService
 {
@@ -64,7 +64,7 @@ class UserFeedService
 
         $likedPostIds = Like::query()
             ->where('user_id', $viewer->id)
-            ->whereIn('post_id', $posts->modelKeys())
+            ->whereIn('post_id', $posts->pluck('id')->all())
             ->pluck('post_id')
             ->all();
 
