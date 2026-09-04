@@ -30,7 +30,7 @@ class UserFeedService
         $postPaginator = $this->getPostsFromFollowedUsers($user, $postsPerPage);
         $posts = $postPaginator->getCollection();
 
-        $this->addLikeStateForViewer($posts, $user);
+        $this->markPostsLikedByUser($posts, $user);
 
         $feedPageResource = new FeedPageResource($postPaginator);
         $feedPage = $feedPageResource->toArray($request);
@@ -56,22 +56,20 @@ class UserFeedService
             ->cursorPaginate($postsPerPage);
     }
 
-    private function addLikeStateForViewer(Collection $posts, User $viewer): void
+    private function markPostsLikedByUser(Collection $posts, User $user): void
     {
         if ($posts->isEmpty()) {
             return;
         }
 
+        $postIds = $posts->pluck('id');
         $likedPostIds = Like::query()
-            ->where('user_id', $viewer->id)
-            ->whereIn('post_id', $posts->pluck('id')->all())
-            ->pluck('post_id')
-            ->all();
-
-        $likedPostIdLookup = array_flip($likedPostIds);
+            ->where('user_id', $user->id)
+            ->whereIn('post_id', $postIds)
+            ->pluck('post_id', 'post_id');
 
         foreach ($posts as $post) {
-            $post->is_liked = isset($likedPostIdLookup[$post->id]);
+            $post->is_liked = $likedPostIds->has($post->id);
         }
     }
 }
