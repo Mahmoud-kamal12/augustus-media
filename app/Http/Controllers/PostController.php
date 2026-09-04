@@ -37,7 +37,6 @@ class PostController extends Controller
         $viewer = $request->user('sanctum');
 
         $post->load('author:id,name');
-        $post->loadCount('likes');
         $post->is_liked = false;
 
         if ($viewer) {

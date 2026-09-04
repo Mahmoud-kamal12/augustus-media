@@ -19,8 +19,7 @@ class FeedService
             ->select("{$postTable}.*")
             ->join($followTable, "{$followTable}.followed_id", '=', "{$postTable}.user_id")
             ->where("{$followTable}.follower_id", $user->id)
-            ->with('author:id,name')
-            ->withCount('likes');
+            ->with('author:id,name');
 
         $followedPostPaginator = $followedPostQuery
             ->orderByDesc("{$postTable}.created_at")

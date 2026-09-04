@@ -24,7 +24,7 @@ class LikeController extends Controller
             $this->feedCache->forgetFirstPage($user);
         }
 
-        $post->loadCount('likes');
+        $post->refresh();
         $likesCount = (int) $post->likes_count;
 
         $likeResponseData = [
@@ -44,7 +44,7 @@ class LikeController extends Controller
             $this->feedCache->forgetFirstPage($user);
         }
 
-        $post->loadCount('likes');
+        $post->refresh();
         $likesCount = (int) $post->likes_count;
 
         $likeResponseData = [

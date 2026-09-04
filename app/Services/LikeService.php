@@ -10,18 +10,30 @@ class LikeService
 {
     public function like(User $user, Post $post): bool
     {
-        return Like::query()->insertOrIgnore([
+        $likeKey = [
             'post_id' => $post->id,
             'user_id' => $user->id,
+        ];
+        $likeData = [
             'created_at' => now(),
-        ]) === 1;
+        ];
+
+        $like = Like::query()->createOrFirst($likeKey, $likeData);
+
+        return $like->wasRecentlyCreated;
     }
 
     public function unlike(User $user, Post $post): bool
     {
-        return Like::query()
+        $like = Like::query()
             ->where('post_id', $post->id)
             ->where('user_id', $user->id)
-            ->delete() > 0;
+            ->first();
+
+        if (! $like) {
+            return false;
+        }
+
+        return (bool) $like->delete();
     }
 }

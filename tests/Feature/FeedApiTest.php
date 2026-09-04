@@ -107,7 +107,7 @@ class FeedApiTest extends TestCase
             'updated_at' => now()->addMinute(),
         ]);
 
-        Like::query()->insert([
+        Like::query()->create([
             'post_id' => $newerPost->id,
             'user_id' => $viewer->id,
             'created_at' => now(),
@@ -178,6 +178,10 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data.is_liked', true);
 
         $this->assertDatabaseCount(Like::class, 1);
+        $this->assertDatabaseHas(Post::class, [
+            'id' => $post->id,
+            'likes_count' => 1,
+        ]);
 
         $this->deleteJson("/posts/{$post->id}/like")
             ->assertOk()
@@ -190,6 +194,10 @@ class FeedApiTest extends TestCase
             ->assertJsonStructure(['data' => ['likes_count']]);
 
         $this->assertDatabaseCount(Like::class, 0);
+        $this->assertDatabaseHas(Post::class, [
+            'id' => $post->id,
+            'likes_count' => 0,
+        ]);
     }
 
     public function test_post_show_returns_current_like_summary(): void
@@ -198,17 +206,16 @@ class FeedApiTest extends TestCase
         $otherUser = User::factory()->create();
         $post = Post::factory()->create();
 
-        Like::query()->insert([
-            [
-                'post_id' => $post->id,
-                'user_id' => $viewer->id,
-                'created_at' => now(),
-            ],
-            [
-                'post_id' => $post->id,
-                'user_id' => $otherUser->id,
-                'created_at' => now(),
-            ],
+        Like::query()->create([
+            'post_id' => $post->id,
+            'user_id' => $viewer->id,
+            'created_at' => now(),
+        ]);
+
+        Like::query()->create([
+            'post_id' => $post->id,
+            'user_id' => $otherUser->id,
+            'created_at' => now(),
         ]);
 
         Sanctum::actingAs($viewer);
@@ -227,6 +234,22 @@ class FeedApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.likes_count', 0)
             ->assertJsonPath('data.is_liked', false);
+    }
+
+    public function test_database_seeder_updates_stored_like_counts(): void
+    {
+        config()->set('seeding.users', 10);
+        config()->set('seeding.posts', 20);
+        config()->set('seeding.follows', 30);
+        config()->set('seeding.likes', 40);
+        config()->set('seeding.chunk_size', 10);
+
+        $this->seed();
+
+        $storedLikesCount = Post::query()->sum('likes_count');
+        $likesCount = Like::query()->count();
+
+        $this->assertSame($likesCount, (int) $storedLikesCount);
     }
 
     public function test_user_cannot_delete_another_users_post(): void
