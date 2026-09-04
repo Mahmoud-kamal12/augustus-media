@@ -42,6 +42,17 @@ demo@example.com / password
 augustus-news@example.com / password
 ```
 
+## Postman
+
+Import these files into Postman:
+
+```text
+postman/Augustus Media Feed API.postman_collection.json
+postman/Augustus Local.postman_environment.json
+```
+
+Select the `Augustus Local` environment, then run `Auth / Login Demo` to store the bearer token automatically.
+
 ## Tests
 
 ```bash
