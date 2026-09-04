@@ -16,8 +16,8 @@ class PostResource extends JsonResource
                 'id' => $this->author->id,
                 'name' => $this->author->name,
             ],
-            'likes_count' => $this->when(isset($this->likes_count), (int) $this->likes_count),
-            'is_liked' => $this->when(isset($this->is_liked), (bool) $this->is_liked),
+            'likes_count' => $this->likes_count,
+            'is_liked' => $this->is_liked,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

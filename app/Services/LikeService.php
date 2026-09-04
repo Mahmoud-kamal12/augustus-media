@@ -25,36 +25,11 @@ class LikeService
             ->delete() > 0;
     }
 
-    public function summariesForPosts(User $viewer, array $postIds): array
+    public function summaryForPost(Post $post, User $viewer): array
     {
-        if ($postIds === []) {
-            return [];
-        }
-
-        $rows = DB::table('likes')
-            ->whereIn('post_id', $postIds)
-            ->selectRaw('post_id, COUNT(*) as likes_count, MAX(user_id = ?) as is_liked', [$viewer->id])
-            ->groupBy('post_id')
-            ->get();
-
-        $summariesByPostId = [];
-
-        foreach ($rows as $row) {
-            $summariesByPostId[$row->post_id] = [
-                'likes_count' => (int) $row->likes_count,
-                'is_liked' => (bool) $row->is_liked,
-            ];
-        }
-
-        return $summariesByPostId;
-    }
-
-    public function summaryForPost(Post $post, ?User $viewer): array
-    {
-        $viewerId = $viewer?->id ?? 0;
         $row = DB::table('likes')
             ->where('post_id', $post->id)
-            ->selectRaw('COUNT(*) as likes_count, MAX(user_id = ?) as is_liked', [$viewerId])
+            ->selectRaw('COUNT(*) as likes_count, MAX(user_id = ?) as is_liked', [$viewer->id])
             ->first();
 
         return [

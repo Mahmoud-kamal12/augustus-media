@@ -129,7 +129,7 @@ Successful controller responses use the same envelope:
 
 Validation, auth, authorization, and not-found API errors use the same response family with `success: false` and an `errors` object when field errors exist.
 
-`likes_count` and `is_liked` are returned from the current database state. Feed pages load both values with one aggregate query for the posts in the page.
+`likes_count` and `is_liked` are query attributes returned from the current database state through Eloquent `withCount` and `withExists`.
 
 Example feed response:
 
@@ -206,7 +206,7 @@ The API uses cursor pagination instead of offset pagination. This avoids deep-pa
 N+1 prevention:
 
 - Authors are eager loaded with `author:id,name`.
-- Like counts and the current user's liked state are fetched together in one grouped query for the current page.
+- Like counts and the current user's liked state are selected with Eloquent aggregate/existence attributes.
 
 ## Caching
 
@@ -216,7 +216,7 @@ Redis cache is used for:
 
 Invalidation:
 
-- Like summaries are loaded with one aggregate query per feed page. The first page response cache covers the hottest read path without maintaining one Redis key per post.
+- Like summaries are selected with the feed query. The first page response cache covers the hottest read path without maintaining one Redis key per post.
 - `like` and `unlike` forget the current user's first feed page because `is_liked` changes.
 - `follow` and `unfollow` forget the current user's first feed page because membership changes.
 - New posts do not invalidate every follower's feed cache. At high scale that becomes expensive, so follower feeds rely on the short TTL unless a future fan-out-on-write feed table is introduced.
@@ -252,12 +252,11 @@ same join path with index condition on created_at/id cursor
 actual time: about 31.1 ms
 ```
 
-Batched like summary for 20 feed posts:
+Like summary attributes for 20 feed posts:
 
 ```text
-covering PRIMARY range scan on likes(post_id, user_id)
-10,095 matching like rows because the seed includes a viral post
-actual time: about 2.5 ms
+selected through indexed `likedBy` count and exists subqueries
+no Redis round trip and no PHP-side like summary loop
 ```
 
 These numbers are good enough for the assignment implementation. The feed query still performs a top-N sort across candidate posts from followed users, which is the expected trade-off for fan-out on read.

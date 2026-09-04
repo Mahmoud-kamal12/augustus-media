@@ -16,6 +16,14 @@ class Post extends Model
         'content',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'likes_count' => 'integer',
+            'is_liked' => 'boolean',
+        ];
+    }
+
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
