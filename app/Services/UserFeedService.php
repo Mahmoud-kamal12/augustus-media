@@ -66,10 +66,13 @@ class UserFeedService
         $likedPostIds = Like::query()
             ->where('user_id', $user->id)
             ->whereIn('post_id', $postIds)
-            ->pluck('post_id', 'post_id');
+            ->pluck('post_id')
+            ->all();
+
+        $likedPostIdsById = array_flip($likedPostIds);
 
         foreach ($posts as $post) {
-            $post->is_liked = $likedPostIds->has($post->id);
+            $post->is_liked = isset($likedPostIdsById[$post->id]);
         }
     }
 }
