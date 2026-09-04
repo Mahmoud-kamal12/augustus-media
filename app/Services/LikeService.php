@@ -5,22 +5,23 @@ namespace App\Services;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class LikeService
 {
     public function like(User $user, Post $post): bool
     {
-        $likeKey = [
-            'post_id' => $post->id,
-            'user_id' => $user->id,
-        ];
-        $likeData = [
-            'created_at' => now(),
-        ];
+        try {
+            Like::query()->create([
+                'post_id' => $post->id,
+                'user_id' => $user->id,
+                'created_at' => now(),
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
 
-        $like = Like::query()->createOrFirst($likeKey, $likeData);
-
-        return $like->wasRecentlyCreated;
+        return true;
     }
 
     public function unlike(User $user, Post $post): bool
