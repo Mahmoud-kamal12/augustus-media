@@ -36,4 +36,15 @@ class Post extends Model
         return $this->belongsToMany(User::class, Like::TABLE)
             ->withPivot('created_at');
     }
+
+    public function isLikedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $this->likes()
+            ->where('user_id', $user->id)
+            ->exists();
+    }
 }

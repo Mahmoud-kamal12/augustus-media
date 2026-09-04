@@ -262,6 +262,24 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data.is_liked', true);
     }
 
+    public function test_post_show_reads_user_from_api_token_when_present(): void
+    {
+        $viewer = User::factory()->create();
+        $post = Post::factory()->create();
+        $token = $viewer->createToken('api')->plainTextToken;
+
+        Like::query()->create([
+            'post_id' => $post->id,
+            'user_id' => $viewer->id,
+            'created_at' => now(),
+        ]);
+
+        $this->withToken($token)
+            ->getJson("/posts/{$post->id}")
+            ->assertOk()
+            ->assertJsonPath('data.is_liked', true);
+    }
+
     public function test_guest_can_show_post_with_not_liked_state(): void
     {
         $post = Post::factory()->create();
