@@ -32,7 +32,6 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        DB::disableQueryLog();
         Cache::flush();
 
         $configuredUserCount = config('seeding.users');

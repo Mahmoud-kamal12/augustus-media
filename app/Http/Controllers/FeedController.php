@@ -26,18 +26,24 @@ class FeedController extends Controller
             $cachedFeedPage = $this->feedCache->firstPageFor($user);
 
             if ($cachedFeedPage) {
-                return ApiResponse::ok($cachedFeedPage['data'], 'Feed fetched successfully.', $cachedFeedPage['meta']);
+                $cachedFeedPosts = $cachedFeedPage['data'];
+                $cachedFeedMeta = $cachedFeedPage['meta'];
+
+                return ApiResponse::ok($cachedFeedPosts, 'Feed fetched successfully.', $cachedFeedMeta);
             }
         }
 
-        $posts = $this->feedService->followedPosts($user, $perPage);
-        $feedPageResource = new FeedPageResource($posts);
+        $postPaginator = $this->feedService->followedPostsPage($user, $perPage);
+        $feedPageResource = new FeedPageResource($postPaginator);
         $feedPage = $feedPageResource->toArray($request);
 
         if ($shouldUseFirstPageCache) {
             $this->feedCache->putFirstPage($user, $feedPage);
         }
 
-        return ApiResponse::ok($feedPage['data'], 'Feed fetched successfully.', $feedPage['meta']);
+        $feedPosts = $feedPage['data'];
+        $feedMeta = $feedPage['meta'];
+
+        return ApiResponse::ok($feedPosts, 'Feed fetched successfully.', $feedMeta);
     }
 }

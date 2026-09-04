@@ -13,19 +13,25 @@ class FeedRequest extends FormRequest
 
     public function rules(): array
     {
+        $maximumPostsPerPage = config('feed.pagination.max_per_page');
+
         return [
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.config('feed.pagination.max_per_page')],
+            'per_page' => ['sometimes', 'integer', 'min:1', "max:{$maximumPostsPerPage}"],
         ];
     }
 
     public function perPage(): int
     {
-        return $this->integer('per_page', config('feed.pagination.default_per_page'));
+        $defaultPostsPerPage = config('feed.pagination.default_per_page');
+
+        return $this->integer('per_page', $defaultPostsPerPage);
     }
 
     public function shouldUseFirstPageCache(): bool
     {
-        return $this->perPage() === config('feed.pagination.default_per_page')
+        $defaultPostsPerPage = config('feed.pagination.default_per_page');
+
+        return $this->perPage() === $defaultPostsPerPage
             && ! $this->query->has('cursor');
     }
 }

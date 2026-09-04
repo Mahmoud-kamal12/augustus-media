@@ -7,21 +7,34 @@ use Illuminate\Database\Seeder;
 
 class PostSeeder extends Seeder
 {
+    private const FEATURED_POST_ID = 1;
+
+    private const NEWS_AUTHOR_ID = 2;
+
+    private const NEWS_AUTHOR_POST_INTERVAL = 10;
+
+    private const POST_SPREAD_SECONDS_STEP = 37;
+
+    private const POST_SPREAD_DAYS = 45;
+
     public function run(int $postCount, int $userCount, int $chunkSize): void
     {
-        $baseTime = now()->timestamp;
+        $baseTimestamp = now()->timestamp;
+        $secondsInPostSpreadWindow = self::POST_SPREAD_DAYS * 24 * 60 * 60;
         $postRows = [];
 
         for ($postId = 1; $postId <= $postCount; $postId++) {
-            $createdAt = date('Y-m-d H:i:s', $baseTime - ($postId * 37 % (45 * 24 * 60 * 60)));
-            $authorId = (($postId * 37) % $userCount) + 1;
+            $createdAtOffset = ($postId * self::POST_SPREAD_SECONDS_STEP) % $secondsInPostSpreadWindow;
+            $createdAtTimestamp = $baseTimestamp - $createdAtOffset;
+            $createdAt = date('Y-m-d H:i:s', $createdAtTimestamp);
+            $authorId = (($postId * self::POST_SPREAD_SECONDS_STEP) % $userCount) + 1;
             $content = "Seed post {$postId} covering local news, culture, business, and daily updates.";
 
-            if ($postId === 1 || $postId % 10 === 0) {
-                $authorId = 2;
+            if ($postId === self::FEATURED_POST_ID || $postId % self::NEWS_AUTHOR_POST_INTERVAL === 0) {
+                $authorId = self::NEWS_AUTHOR_ID;
             }
 
-            if ($postId === 1) {
+            if ($postId === self::FEATURED_POST_ID) {
                 $content = 'A fast-moving regional story is gathering a huge response across the network.';
             }
 

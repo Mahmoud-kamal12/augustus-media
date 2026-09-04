@@ -13,8 +13,8 @@ class AuthenticatedUserController extends Controller
     {
         $user = $request->user();
         $userResource = new UserResource($user);
-        $responseData = $userResource->resolve($request);
+        $authenticatedUserData = $userResource->resolve($request);
 
-        return ApiResponse::ok($responseData, 'Authenticated user fetched.');
+        return ApiResponse::ok($authenticatedUserData, 'Authenticated user fetched.');
     }
 }

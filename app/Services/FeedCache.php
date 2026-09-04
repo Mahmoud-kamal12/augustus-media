@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Cache;
 
 class FeedCache
 {
+    private const FIRST_PAGE_KEY_PREFIX = 'feed:first-page:user';
+
+    private const FIRST_PAGE_KEY_VERSION = 'v1';
+
     public function firstPageFor(User $user): ?array
     {
         return Cache::get($this->firstPageKey($user));
@@ -24,6 +28,6 @@ class FeedCache
 
     private function firstPageKey(User $user): string
     {
-        return "feed:first-page:user:{$user->id}:v1";
+        return self::FIRST_PAGE_KEY_PREFIX.":{$user->id}:".self::FIRST_PAGE_KEY_VERSION;
     }
 }

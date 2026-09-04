@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    private const DEMO_USER_ID = 1;
+
+    private const NEWS_USER_ID = 2;
+
     public function run(int $userCount, int $chunkSize): void
     {
         $password = Hash::make('password');
@@ -16,14 +20,14 @@ class UserSeeder extends Seeder
 
         for ($userId = 1; $userId <= $userCount; $userId++) {
             $name = match ($userId) {
-                1 => 'Demo User',
-                2 => 'Augustus News',
+                self::DEMO_USER_ID => 'Demo User',
+                self::NEWS_USER_ID => 'Augustus News',
                 default => "User {$userId}",
             };
 
             $email = match ($userId) {
-                1 => 'demo@example.com',
-                2 => 'augustus-news@example.com',
+                self::DEMO_USER_ID => 'demo@example.com',
+                self::NEWS_USER_ID => 'augustus-news@example.com',
                 default => "user{$userId}@example.com",
             };
 

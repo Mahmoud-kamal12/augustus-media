@@ -27,21 +27,17 @@ class PostController extends Controller
         $post->load('author');
 
         $postResource = new PostResource($post);
-        $responseData = $postResource->resolve($request);
+        $createdPostData = $postResource->resolve($request);
 
-        return ApiResponse::created($responseData, 'Post created successfully.');
+        return ApiResponse::created($createdPostData, 'Post created successfully.');
     }
 
     public function show(Request $request, Post $post): JsonResponse
     {
         $viewer = $request->user('sanctum');
 
-        $post = Post::query()
-            ->whereKey($post->id)
-            ->with('author:id,name')
-            ->withCount('likes')
-            ->firstOrFail();
-
+        $post->load('author:id,name');
+        $post->loadCount('likes');
         $post->is_liked = false;
 
         if ($viewer) {
@@ -52,9 +48,9 @@ class PostController extends Controller
         }
 
         $postResource = new PostResource($post);
-        $responseData = $postResource->resolve($request);
+        $postData = $postResource->resolve($request);
 
-        return ApiResponse::ok($responseData, 'Post fetched successfully.');
+        return ApiResponse::ok($postData, 'Post fetched successfully.');
     }
 
     public function destroy(Post $post): JsonResponse

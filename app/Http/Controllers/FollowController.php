@@ -31,9 +31,11 @@ class FollowController extends Controller
             $this->feedCache->forgetFirstPage($currentUser);
         }
 
-        return ApiResponse::ok([
+        $followResponseData = [
             'followed' => true,
-        ], 'User followed successfully.');
+        ];
+
+        return ApiResponse::ok($followResponseData, 'User followed successfully.');
     }
 
     public function destroy(Request $request, User $userToUnfollow): JsonResponse

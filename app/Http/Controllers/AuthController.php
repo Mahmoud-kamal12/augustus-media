@@ -21,12 +21,12 @@ class AuthController extends Controller
         $plainTextToken = $accessToken->plainTextToken;
         $userResource = new UserResource($user);
 
-        $responseData = [
+        $registrationResponseData = [
             'user' => $userResource->resolve($request),
             'token' => $plainTextToken,
         ];
 
-        return ApiResponse::created($responseData, 'User registered successfully.');
+        return ApiResponse::created($registrationResponseData, 'User registered successfully.');
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -44,11 +44,11 @@ class AuthController extends Controller
         $plainTextToken = $accessToken->plainTextToken;
         $userResource = new UserResource($user);
 
-        $responseData = [
+        $loginResponseData = [
             'user' => $userResource->resolve($request),
             'token' => $plainTextToken,
         ];
 
-        return ApiResponse::ok($responseData, 'User logged in successfully.');
+        return ApiResponse::ok($loginResponseData, 'User logged in successfully.');
     }
 }

@@ -7,14 +7,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ApiResponse
 {
-    public static function ok(mixed $data = null, string $message = 'OK', array $meta = []): JsonResponse
+    public static function ok(mixed $responseData = null, string $message = 'OK', array $meta = []): JsonResponse
     {
-        return self::json($data, $message, $meta, Response::HTTP_OK);
+        return self::json($responseData, $message, $meta, Response::HTTP_OK);
     }
 
-    public static function created(mixed $data = null, string $message = 'Created', array $meta = []): JsonResponse
+    public static function created(mixed $responseData = null, string $message = 'Created', array $meta = []): JsonResponse
     {
-        return self::json($data, $message, $meta, Response::HTTP_CREATED);
+        return self::json($responseData, $message, $meta, Response::HTTP_CREATED);
     }
 
     public static function deleted(string $message = 'Deleted'): JsonResponse
@@ -33,12 +33,12 @@ class ApiResponse
         ], $statusCode);
     }
 
-    private static function json(mixed $data, string $message, array $meta, int $statusCode): JsonResponse
+    private static function json(mixed $responseData, string $message, array $meta, int $statusCode): JsonResponse
     {
         return response()->json([
             'success' => true,
             'message' => $message,
-            'data' => $data,
+            'data' => $responseData,
             'meta' => (object) $meta,
         ], $statusCode);
     }

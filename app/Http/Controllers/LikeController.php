@@ -25,14 +25,15 @@ class LikeController extends Controller
         }
 
         $post->loadCount('likes');
+        $likesCount = (int) $post->likes_count;
 
-        $responseData = [
+        $likeResponseData = [
             'liked' => true,
             'is_liked' => true,
-            'likes_count' => $post->likes_count,
+            'likes_count' => $likesCount,
         ];
 
-        return ApiResponse::ok($responseData, 'Post liked successfully.');
+        return ApiResponse::ok($likeResponseData, 'Post liked successfully.');
     }
 
     public function destroy(Request $request, Post $post): JsonResponse
@@ -44,13 +45,14 @@ class LikeController extends Controller
         }
 
         $post->loadCount('likes');
+        $likesCount = (int) $post->likes_count;
 
-        $responseData = [
+        $likeResponseData = [
             'liked' => false,
             'is_liked' => false,
-            'likes_count' => $post->likes_count,
+            'likes_count' => $likesCount,
         ];
 
-        return ApiResponse::ok($responseData, 'Post unliked successfully.');
+        return ApiResponse::ok($likeResponseData, 'Post unliked successfully.');
     }
 }

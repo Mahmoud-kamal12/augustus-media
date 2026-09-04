@@ -219,6 +219,16 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data.is_liked', true);
     }
 
+    public function test_guest_can_show_post_with_not_liked_state(): void
+    {
+        $post = Post::factory()->create();
+
+        $this->getJson("/posts/{$post->id}")
+            ->assertOk()
+            ->assertJsonPath('data.likes_count', 0)
+            ->assertJsonPath('data.is_liked', false);
+    }
+
     public function test_user_cannot_delete_another_users_post(): void
     {
         $viewer = User::factory()->create();
