@@ -127,6 +127,20 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('meta.per_page', 10);
     }
 
+    public function test_feed_rejects_per_page_above_configured_limit(): void
+    {
+        config()->set('feed.pagination.max_per_page', 5);
+
+        $viewer = User::factory()->create();
+
+        Sanctum::actingAs($viewer);
+
+        $this->getJson('/feed?per_page=6')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonValidationErrors('per_page');
+    }
+
     public function test_follow_invalidates_cached_first_feed_page(): void
     {
         $viewer = User::factory()->create();

@@ -17,21 +17,9 @@ class UserFeedService
         private readonly UserFeedCache $userFeedCache,
     ) {}
 
-    public function getFeedPageForUser(User $user, Request $request): array
+    public function getFeedPage(User $user, int $postsPerPage, bool $useFirstPageCache, Request $request): array
     {
-        $feedPagination = config('feed.pagination');
-        $defaultPostsPerPage = (int) $feedPagination['default_per_page'];
-        $maximumPostsPerPage = (int) $feedPagination['max_per_page'];
-
-        $feedFilters = $request->validate([
-            'per_page' => ['sometimes', 'integer', 'min:1', "max:{$maximumPostsPerPage}"],
-        ]);
-
-        $postsPerPage = (int) ($feedFilters['per_page'] ?? $defaultPostsPerPage);
-        $canUseCachedFirstPage = ! $request->query->has('cursor')
-            && ! $request->query->has('per_page');
-
-        if ($canUseCachedFirstPage) {
+        if ($useFirstPageCache) {
             $cachedFeedPage = $this->userFeedCache->getFirstPage($user);
 
             if ($cachedFeedPage !== null) {
@@ -47,7 +35,7 @@ class UserFeedService
         $feedPageResource = new FeedPageResource($postPaginator);
         $feedPage = $feedPageResource->toArray($request);
 
-        if ($canUseCachedFirstPage) {
+        if ($useFirstPageCache) {
             $this->userFeedCache->storeFirstPage($user, $feedPage);
         }
 
