@@ -29,15 +29,16 @@ class Post extends Model
         ];
     }
 
-    public function scopeWithLikeSummaryFor(Builder $query, int $userId): Builder
+    public static function addLikesCountAndViewerState(Builder $postQuery, int $viewerId): Builder
     {
         $postTable = self::TABLE;
         $likeTable = Like::TABLE;
-        $isLikedSql = "exists (select 1 from {$likeTable} where {$likeTable}.post_id = {$postTable}.id and {$likeTable}.user_id = ?) as is_liked";
+        $isLikedColumnSql = "exists (select 1 from {$likeTable} where {$likeTable}.post_id = {$postTable}.id and {$likeTable}.user_id = ?) as is_liked";
 
-        return $query
-            ->withCount('likedBy as likes_count')
-            ->selectRaw($isLikedSql, [$userId]);
+        $postQuery->withCount('likedBy as likes_count');
+        $postQuery->selectRaw($isLikedColumnSql, [$viewerId]);
+
+        return $postQuery;
     }
 
     public function author(): BelongsTo

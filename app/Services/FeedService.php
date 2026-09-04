@@ -14,12 +14,15 @@ class FeedService
         $postTable = Post::TABLE;
         $followTable = Follow::TABLE;
 
-        return Post::query()
+        $postQuery = Post::query()
             ->select("{$postTable}.*")
             ->join($followTable, "{$followTable}.followed_id", '=', "{$postTable}.user_id")
             ->where("{$followTable}.follower_id", $user->id)
-            ->with('author:id,name')
-            ->withLikeSummaryFor($user->id)
+            ->with('author:id,name');
+
+        $postQuery = Post::addLikesCountAndViewerState($postQuery, $user->id);
+
+        return $postQuery
             ->orderByDesc("{$postTable}.created_at")
             ->orderByDesc("{$postTable}.id")
             ->cursorPaginate($perPage);

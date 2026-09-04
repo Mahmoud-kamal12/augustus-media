@@ -38,9 +38,9 @@ class PostController extends Controller
 
         $postQuery = Post::query()
             ->whereKey($post->id)
-            ->with('author:id,name')
-            ->withLikeSummaryFor($viewerId);
+            ->with('author:id,name');
 
+        $postQuery = Post::addLikesCountAndViewerState($postQuery, $viewerId);
         $post = $postQuery->firstOrFail();
         $postResource = new PostResource($post);
         $responseData = $postResource->resolve($request);
