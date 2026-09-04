@@ -9,11 +9,13 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $createdAt = $this->created_at ? $this->created_at->toISOString() : null;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $createdAt,
         ];
     }
 }

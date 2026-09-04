@@ -23,11 +23,25 @@ class DatabaseSeeder extends Seeder
         DB::disableQueryLog();
         Cache::flush();
 
-        $userCount = max(2, config('seeding.users'));
-        $postCount = max(1, config('seeding.posts'));
-        $followCount = max(0, min(config('seeding.follows'), $userCount * ($userCount - 1)));
-        $likeCount = max(0, min(config('seeding.likes'), $postCount * $userCount));
-        $insertChunkSize = max(100, config('seeding.chunk_size'));
+        $configuredUserCount = config('seeding.users');
+        $configuredPostCount = config('seeding.posts');
+        $configuredFollowCount = config('seeding.follows');
+        $configuredLikeCount = config('seeding.likes');
+        $configuredChunkSize = config('seeding.chunk_size');
+
+        $userCount = max(2, $configuredUserCount);
+        $postCount = max(1, $configuredPostCount);
+
+        $maximumFollowCount = $userCount * ($userCount - 1);
+        $maximumLikeCount = $postCount * $userCount;
+
+        $followCount = min($configuredFollowCount, $maximumFollowCount);
+        $followCount = max(0, $followCount);
+
+        $likeCount = min($configuredLikeCount, $maximumLikeCount);
+        $likeCount = max(0, $likeCount);
+
+        $insertChunkSize = max(100, $configuredChunkSize);
 
         $this->truncateSeededTables();
 
@@ -73,10 +87,15 @@ class DatabaseSeeder extends Seeder
 
     private function printSeedSummary(): void
     {
-        foreach (['users', 'posts', 'follows', 'likes'] as $table) {
-            $this->command?->info(sprintf('%s: %s', $table, DB::table($table)->count()));
+        if (! $this->command) {
+            return;
         }
 
-        $this->command?->info('Demo credentials: demo@example.com / password');
+        foreach (['users', 'posts', 'follows', 'likes'] as $table) {
+            $rowCount = DB::table($table)->count();
+            $this->command->info("{$table}: {$rowCount}");
+        }
+
+        $this->command->info('Demo credentials: demo@example.com / password');
     }
 }

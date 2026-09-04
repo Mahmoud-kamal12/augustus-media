@@ -25,12 +25,16 @@ class NewPostNotification extends Notification
 
     public static function databaseData(Post $post): array
     {
+        $authorName = $post->author ? $post->author->name : null;
+        $contentPreview = Str::limit($post->content, 120);
+        $createdAt = $post->created_at ? $post->created_at->toISOString() : null;
+
         return [
             'post_id' => $post->id,
             'author_id' => $post->user_id,
-            'author_name' => $post->author?->name,
-            'content_preview' => Str::limit($post->content, 120),
-            'created_at' => $post->created_at?->toISOString(),
+            'author_name' => $authorName,
+            'content_preview' => $contentPreview,
+            'created_at' => $createdAt,
         ];
     }
 }

@@ -30,7 +30,8 @@ class NotifyFollowersOfNewPost implements ShouldQueue
             return;
         }
 
-        $notificationDataJson = json_encode(NewPostNotification::databaseData($post), JSON_THROW_ON_ERROR);
+        $notificationData = NewPostNotification::databaseData($post);
+        $notificationDataJson = json_encode($notificationData, JSON_THROW_ON_ERROR);
         $lastFollowerId = 0;
 
         while (true) {
@@ -70,14 +71,12 @@ class NotifyFollowersOfNewPost implements ShouldQueue
     private function notificationId(int $postId, int $followerId): string
     {
         $hash = md5("new-post:{$postId}:{$followerId}");
+        $firstPart = substr($hash, 0, 8);
+        $secondPart = substr($hash, 8, 4);
+        $thirdPart = substr($hash, 12, 4);
+        $fourthPart = substr($hash, 16, 4);
+        $lastPart = substr($hash, 20);
 
-        return sprintf(
-            '%s-%s-%s-%s-%s',
-            substr($hash, 0, 8),
-            substr($hash, 8, 4),
-            substr($hash, 12, 4),
-            substr($hash, 16, 4),
-            substr($hash, 20)
-        );
+        return "{$firstPart}-{$secondPart}-{$thirdPart}-{$fourthPart}-{$lastPart}";
     }
 }

@@ -15,33 +15,37 @@ class PostController extends Controller
 {
     public function store(StorePostRequest $request): JsonResponse
     {
-        $post = $request->user()->posts()->create($request->validated());
+        $user = $request->user();
+        $validatedData = $request->validated();
+        $post = $user->posts()->create($validatedData);
 
         NotifyFollowersOfNewPost::dispatch($post->id);
 
         $post->likes_count = 0;
         $post->is_liked = false;
+        $post->load('author');
 
-        return ApiResponse::created(
-            (new PostResource($post->load('author')))->resolve($request),
-            'Post created successfully.'
-        );
+        $postResource = new PostResource($post);
+        $responseData = $postResource->resolve($request);
+
+        return ApiResponse::created($responseData, 'Post created successfully.');
     }
 
     public function show(Request $request, Post $post): JsonResponse
     {
-        $viewerId = $request->user('sanctum')?->id ?? 0;
+        $viewer = $request->user('sanctum');
+        $viewerId = $viewer ? $viewer->id : 0;
 
-        $post = Post::query()
+        $postQuery = Post::query()
             ->whereKey($post->id)
             ->with('author:id,name')
-            ->withLikeSummaryFor($viewerId)
-            ->firstOrFail();
+            ->withLikeSummaryFor($viewerId);
 
-        return ApiResponse::ok(
-            (new PostResource($post))->resolve($request),
-            'Post fetched successfully.'
-        );
+        $post = $postQuery->firstOrFail();
+        $postResource = new PostResource($post);
+        $responseData = $postResource->resolve($request);
+
+        return ApiResponse::ok($responseData, 'Post fetched successfully.');
     }
 
     public function destroy(Post $post): JsonResponse

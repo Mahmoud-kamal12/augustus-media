@@ -17,7 +17,8 @@ class LikeSeeder extends Seeder
         $likeRows = [];
         $likeRowsCreated = 0;
         $createdAt = now()->toDateTimeString();
-        $firstPostLikeCount = min($userCount, max(1000, intdiv(max(1, $requiredLikeCount), 10)));
+        $firstPostTargetLikeCount = max(1000, intdiv($requiredLikeCount, 10));
+        $firstPostLikeCount = min($userCount, $firstPostTargetLikeCount);
 
         for ($userId = 1; $userId <= $firstPostLikeCount && $likeRowsCreated < $requiredLikeCount; $userId++) {
             $this->addLikeRow($likeRows, 1, $userId, $createdAt, $chunkSize);

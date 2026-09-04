@@ -18,8 +18,9 @@ class FollowSeeder extends Seeder
         $specialFollowPairs = [];
         $followRowsCreated = 0;
         $createdAt = now()->toDateTimeString();
+        $lastSpecialFollowedUserId = min($userCount, 251);
 
-        for ($followedUserId = 2; $followedUserId <= min($userCount, 251) && $followRowsCreated < $requiredFollowCount; $followedUserId++) {
+        for ($followedUserId = 2; $followedUserId <= $lastSpecialFollowedUserId && $followRowsCreated < $requiredFollowCount; $followedUserId++) {
             $this->addFollowRow($followRows, 1, $followedUserId, $createdAt, $chunkSize);
             $specialFollowPairs[1][$followedUserId] = true;
             $followRowsCreated++;

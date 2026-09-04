@@ -19,8 +19,10 @@ class FeedController extends Controller
     public function index(FeedRequest $request): JsonResponse
     {
         $user = $request->user();
+        $perPage = $request->perPage();
+        $shouldUseFirstPageCache = $request->shouldUseFirstPageCache();
 
-        if ($request->shouldUseFirstPageCache()) {
+        if ($shouldUseFirstPageCache) {
             $cachedFeedPage = $this->feedCache->firstPageFor($user);
 
             if ($cachedFeedPage) {
@@ -28,11 +30,11 @@ class FeedController extends Controller
             }
         }
 
-        $feedPage = (new FeedPageResource(
-            $this->feedService->followedPosts($user, $request->perPage())
-        ))->toArray($request);
+        $posts = $this->feedService->followedPosts($user, $perPage);
+        $feedPageResource = new FeedPageResource($posts);
+        $feedPage = $feedPageResource->toArray($request);
 
-        if ($request->shouldUseFirstPageCache()) {
+        if ($shouldUseFirstPageCache) {
             $this->feedCache->putFirstPage($user, $feedPage);
         }
 

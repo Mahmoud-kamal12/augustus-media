@@ -11,14 +11,23 @@ class FeedPageResource
 
     public function toArray(Request $request): array
     {
+        $posts = $this->paginator->getCollection();
+        $postResources = PostResource::collection($posts);
+        $data = $postResources->resolve($request);
+
+        $nextCursor = $this->paginator->nextCursor();
+        $previousCursor = $this->paginator->previousCursor();
+
+        $meta = [
+            'per_page' => $this->paginator->perPage(),
+            'next_cursor' => $nextCursor ? $nextCursor->encode() : null,
+            'previous_cursor' => $previousCursor ? $previousCursor->encode() : null,
+            'has_more_pages' => $this->paginator->hasMorePages(),
+        ];
+
         return [
-            'data' => PostResource::collection($this->paginator->getCollection())->resolve($request),
-            'meta' => [
-                'per_page' => $this->paginator->perPage(),
-                'next_cursor' => $this->paginator->nextCursor()?->encode(),
-                'previous_cursor' => $this->paginator->previousCursor()?->encode(),
-                'has_more_pages' => $this->paginator->hasMorePages(),
-            ],
+            'data' => $data,
+            'meta' => $meta,
         ];
     }
 }

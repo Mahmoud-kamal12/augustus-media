@@ -11,9 +11,10 @@ class AuthenticatedUserController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        return ApiResponse::ok(
-            (new UserResource($request->user()))->resolve($request),
-            'Authenticated user fetched.'
-        );
+        $user = $request->user();
+        $userResource = new UserResource($user);
+        $responseData = $userResource->resolve($request);
+
+        return ApiResponse::ok($responseData, 'Authenticated user fetched.');
     }
 }

@@ -258,8 +258,11 @@ class FeedApiTest extends TestCase
             $this->follow($follower, $author);
         }
 
-        (new NotifyFollowersOfNewPost($post->id))->handle();
-        (new NotifyFollowersOfNewPost($post->id))->handle();
+        $firstJobRun = new NotifyFollowersOfNewPost($post->id);
+        $firstJobRun->handle();
+
+        $secondJobRun = new NotifyFollowersOfNewPost($post->id);
+        $secondJobRun->handle();
 
         $this->assertDatabaseCount('notifications', 2);
         $this->assertDatabaseHas('notifications', [

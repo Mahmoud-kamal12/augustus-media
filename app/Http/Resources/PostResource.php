@@ -9,6 +9,8 @@ class PostResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $createdAt = $this->created_at ? $this->created_at->toISOString() : null;
+
         return [
             'id' => $this->id,
             'content' => $this->content,
@@ -18,7 +20,7 @@ class PostResource extends JsonResource
             ],
             'likes_count' => $this->likes_count,
             'is_liked' => $this->is_liked,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $createdAt,
         ];
     }
 }
