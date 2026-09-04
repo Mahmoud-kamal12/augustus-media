@@ -129,7 +129,7 @@ Successful controller responses use the same envelope:
 
 Validation, auth, authorization, and not-found API errors use the same response family with `success: false` and an `errors` object when field errors exist.
 
-`likes_count` and `is_liked` are query attributes returned from the current database state through Eloquent `withCount` and `withExists`.
+`likes_count` and `is_liked` are query attributes returned from the current database state through the `withLikeSummaryFor` post scope.
 
 Example feed response:
 
@@ -223,7 +223,7 @@ Invalidation:
 
 ## Queue Notifications
 
-Post creation dispatches `NotifyFollowersOfNewPost` with `afterCommit()` so followers are notified only after the post transaction commits.
+Post creation dispatches `NotifyFollowersOfNewPost` after the post row is created.
 
 The job:
 

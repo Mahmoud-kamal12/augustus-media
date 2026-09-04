@@ -3,18 +3,18 @@
 namespace App\Services;
 
 use App\Models\User;
-use Closure;
 use Illuminate\Support\Facades\Cache;
 
 class FeedCache
 {
-    public function rememberFirstPage(User $user, Closure $callback): array
+    public function firstPageFor(User $user): ?array
     {
-        return Cache::remember(
-            $this->firstPageKey($user),
-            config('feed.cache.first_page_ttl'),
-            $callback
-        );
+        return Cache::get($this->firstPageKey($user));
+    }
+
+    public function putFirstPage(User $user, array $feedPage): void
+    {
+        Cache::put($this->firstPageKey($user), $feedPage, config('feed.cache.first_page_ttl'));
     }
 
     public function forgetFirstPage(User $user): void

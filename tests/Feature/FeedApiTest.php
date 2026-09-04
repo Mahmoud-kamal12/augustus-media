@@ -254,7 +254,9 @@ class FeedApiTest extends TestCase
         $followers = User::factory()->count(2)->create();
         $post = Post::factory()->for($author, 'author')->create();
 
-        $followers->each(fn (User $follower) => $this->follow($follower, $author));
+        foreach ($followers as $follower) {
+            $this->follow($follower, $author);
+        }
 
         (new NotifyFollowersOfNewPost($post->id))->handle();
         (new NotifyFollowersOfNewPost($post->id))->handle();

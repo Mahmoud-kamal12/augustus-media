@@ -15,12 +15,7 @@ class FeedService
             ->join('follows', 'follows.followed_id', '=', 'posts.user_id')
             ->where('follows.follower_id', $user->id)
             ->with('author:id,name')
-            ->withCount('likedBy as likes_count')
-            ->withExists([
-                'likedBy as is_liked' => function ($query) use ($user): void {
-                    $query->where('users.id', $user->id);
-                },
-            ])
+            ->withLikeSummaryFor($user->id)
             ->orderByDesc('posts.created_at')
             ->orderByDesc('posts.id')
             ->cursorPaginate($perPage);

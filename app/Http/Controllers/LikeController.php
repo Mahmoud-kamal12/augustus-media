@@ -24,12 +24,12 @@ class LikeController extends Controller
             $this->feedCache->forgetFirstPage($user);
         }
 
-        $likeSummary = $this->likeService->summaryForPost($post, $user);
+        $post->loadCount('likedBy as likes_count');
 
         return ApiResponse::ok([
             'liked' => true,
-            'is_liked' => $likeSummary['is_liked'],
-            'likes_count' => $likeSummary['likes_count'],
+            'is_liked' => true,
+            'likes_count' => $post->likes_count,
         ], 'Post liked successfully.');
     }
 
@@ -41,12 +41,12 @@ class LikeController extends Controller
             $this->feedCache->forgetFirstPage($user);
         }
 
-        $likeSummary = $this->likeService->summaryForPost($post, $user);
+        $post->loadCount('likedBy as likes_count');
 
         return ApiResponse::ok([
             'liked' => false,
-            'is_liked' => $likeSummary['is_liked'],
-            'likes_count' => $likeSummary['likes_count'],
+            'is_liked' => false,
+            'likes_count' => $post->likes_count,
         ], 'Post unliked successfully.');
     }
 }

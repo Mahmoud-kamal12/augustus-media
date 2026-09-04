@@ -9,20 +9,15 @@ use App\Models\Post;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
 {
     public function store(StorePostRequest $request): JsonResponse
     {
-        $post = DB::transaction(function () use ($request) {
-            $post = $request->user()->posts()->create($request->validated());
+        $post = $request->user()->posts()->create($request->validated());
 
-            NotifyFollowersOfNewPost::dispatch($post->id)->afterCommit();
-
-            return $post;
-        });
+        NotifyFollowersOfNewPost::dispatch($post->id);
 
         $post->likes_count = 0;
         $post->is_liked = false;
@@ -37,14 +32,11 @@ class PostController extends Controller
     {
         $viewerId = $request->user('sanctum')?->id ?? 0;
 
-        $post
-            ->load('author')
-            ->loadCount('likedBy as likes_count')
-            ->loadExists([
-                'likedBy as is_liked' => function ($query) use ($viewerId): void {
-                    $query->where('users.id', $viewerId);
-                },
-            ]);
+        $post = Post::query()
+            ->whereKey($post->id)
+            ->with('author:id,name')
+            ->withLikeSummaryFor($viewerId)
+            ->firstOrFail();
 
         return ApiResponse::ok(
             (new PostResource($post))->resolve($request),

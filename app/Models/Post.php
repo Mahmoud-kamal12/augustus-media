@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,16 @@ class Post extends Model
             'likes_count' => 'integer',
             'is_liked' => 'boolean',
         ];
+    }
+
+    public function scopeWithLikeSummaryFor(Builder $query, int $userId): Builder
+    {
+        return $query
+            ->withCount('likedBy as likes_count')
+            ->selectRaw(
+                'exists (select 1 from likes where likes.post_id = posts.id and likes.user_id = ?) as is_liked',
+                [$userId]
+            );
     }
 
     public function author(): BelongsTo
