@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -22,7 +23,7 @@ class AuthController extends Controller
         $userResource = new UserResource($user);
 
         $registrationResponseData = [
-            'user' => $userResource->resolve($request),
+            'user' => $userResource->toArray($request),
             'token' => $plainTextToken,
         ];
 
@@ -45,10 +46,19 @@ class AuthController extends Controller
         $userResource = new UserResource($user);
 
         $loginResponseData = [
-            'user' => $userResource->resolve($request),
+            'user' => $userResource->toArray($request),
             'token' => $plainTextToken,
         ];
 
         return ApiResponse::ok($loginResponseData, 'User logged in successfully.');
+    }
+
+    public function currentUser(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $userResource = new UserResource($user);
+        $authenticatedUserData = $userResource->toArray($request);
+
+        return ApiResponse::ok($authenticatedUserData, 'Authenticated user fetched.');
     }
 }

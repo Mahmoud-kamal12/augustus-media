@@ -13,7 +13,7 @@ class FeedPageResource
     {
         $posts = $this->postPaginator->getCollection();
         $postResources = PostResource::collection($posts);
-        $postsResponseData = $postResources->resolve($request);
+        $postsResponseData = $postResources->toArray($request);
 
         $nextCursor = $this->postPaginator->nextCursor();
         $previousCursor = $this->postPaginator->previousCursor();

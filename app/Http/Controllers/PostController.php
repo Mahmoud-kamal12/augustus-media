@@ -27,7 +27,7 @@ class PostController extends Controller
         $post->load('author');
 
         $postResource = new PostResource($post);
-        $createdPostData = $postResource->resolve($request);
+        $createdPostData = $postResource->toArray($request);
 
         return ApiResponse::created($createdPostData, 'Post created successfully.');
     }
@@ -47,7 +47,7 @@ class PostController extends Controller
         }
 
         $postResource = new PostResource($post);
-        $postData = $postResource->resolve($request);
+        $postData = $postResource->toArray($request);
 
         return ApiResponse::ok($postData, 'Post fetched successfully.');
     }
