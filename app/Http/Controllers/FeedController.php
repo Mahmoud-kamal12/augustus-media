@@ -18,26 +18,20 @@ class FeedController extends Controller
 
     public function index(FeedRequest $request): JsonResponse
     {
+        $buildFeedPage = function () use ($request): array {
+            return (new FeedPageResource(
+                $this->feedService->followedPosts($request->user(), $request->perPage())
+            ))->toArray($request);
+        };
+
         if ($request->shouldUseFirstPageCache()) {
-            $responseBody = $this->feedCache->rememberFirstPage(
-                $request->user(),
-                function () use ($request): array {
-                    return $this->buildResponseBody($request);
-                }
-            );
+            $responseBody = $this->feedCache->rememberFirstPage($request->user(), $buildFeedPage);
 
             return ApiResponse::ok($responseBody['data'], 'Feed fetched successfully.', $responseBody['meta']);
         }
 
-        $responseBody = $this->buildResponseBody($request);
+        $responseBody = $buildFeedPage();
 
         return ApiResponse::ok($responseBody['data'], 'Feed fetched successfully.', $responseBody['meta']);
-    }
-
-    private function buildResponseBody(FeedRequest $request): array
-    {
-        return (new FeedPageResource(
-            $this->feedService->followedPosts($request->user(), $request->perPage())
-        ))->toArray($request);
     }
 }

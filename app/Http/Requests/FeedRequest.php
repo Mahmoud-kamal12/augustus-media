@@ -14,28 +14,18 @@ class FeedRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.$this->maxPerPage()],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.config('feed.pagination.max_per_page')],
         ];
     }
 
     public function perPage(): int
     {
-        return $this->integer('per_page', $this->defaultPerPage());
+        return $this->integer('per_page', config('feed.pagination.default_per_page'));
     }
 
     public function shouldUseFirstPageCache(): bool
     {
-        return $this->perPage() === $this->defaultPerPage()
+        return $this->perPage() === config('feed.pagination.default_per_page')
             && ! $this->query->has('cursor');
-    }
-
-    private function defaultPerPage(): int
-    {
-        return config('feed.pagination.default_per_page');
-    }
-
-    private function maxPerPage(): int
-    {
-        return config('feed.pagination.max_per_page');
     }
 }

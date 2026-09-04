@@ -30,7 +30,7 @@ class LikeSeeder extends Seeder
             }
 
             for ($postId = 1; $postId <= $postCount && $likeRowsCreated < $requiredLikeCount; $postId++) {
-                $userId = $this->userIdFor($postId, $likeDistance, $userCount);
+                $userId = (($postId + $likeDistance - 1) % $userCount) + 1;
 
                 if ($postId === 1 && $userId <= $firstPostLikeCount) {
                     continue;
@@ -60,11 +60,6 @@ class LikeSeeder extends Seeder
         if (count($likeRows) >= $chunkSize) {
             $this->insertLikeRows($likeRows);
         }
-    }
-
-    private function userIdFor(int $postId, int $likeDistance, int $userCount): int
-    {
-        return (($postId + $likeDistance - 1) % $userCount) + 1;
     }
 
     private function insertLikeRows(array &$likeRows): void

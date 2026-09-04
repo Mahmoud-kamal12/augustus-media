@@ -33,13 +33,16 @@ class LikeService
 
     public function countsFor(array $postIds): array
     {
-        $postIdsToCount = $this->cleanPostIds($postIds);
-
-        if ($postIdsToCount === []) {
+        if ($postIds === []) {
             return [];
         }
 
-        $cacheKeysByPostId = $this->cacheKeysByPostId($postIdsToCount);
+        $cacheKeysByPostId = [];
+
+        foreach ($postIds as $postId) {
+            $cacheKeysByPostId[$postId] = "likes_count:{$postId}";
+        }
+
         $cachedCountsByKey = Cache::many(array_values($cacheKeysByPostId));
         $likeCountsByPostId = [];
         $postIdsMissingFromCache = [];
@@ -78,54 +81,22 @@ class LikeService
 
     public function isLikedBy(Post $post, User $user): bool
     {
-        return in_array($post->id, $this->likedPostIds($user, [$post->id]), true);
+        return DB::table('likes')
+            ->where('post_id', $post->id)
+            ->where('user_id', $user->id)
+            ->exists();
     }
 
     public function likedPostIds(User $user, array $postIds): array
     {
-        $postIdsToCheck = $this->cleanPostIds($postIds);
-
-        if ($postIdsToCheck === []) {
+        if ($postIds === []) {
             return [];
         }
 
-        $likedPostIds = DB::table('likes')
+        return DB::table('likes')
             ->where('user_id', $user->id)
-            ->whereIn('post_id', $postIdsToCheck)
+            ->whereIn('post_id', $postIds)
             ->pluck('post_id')
             ->all();
-
-        return $this->cleanPostIds($likedPostIds);
-    }
-
-    private function cacheKeysByPostId(array $postIds): array
-    {
-        $cacheKeysByPostId = [];
-
-        foreach ($postIds as $postId) {
-            $cacheKeysByPostId[$postId] = $this->likeCountCacheKey($postId);
-        }
-
-        return $cacheKeysByPostId;
-    }
-
-    private function likeCountCacheKey(int $postId): string
-    {
-        return "likes_count:{$postId}";
-    }
-
-    private function cleanPostIds(array $postIds): array
-    {
-        $cleanPostIds = [];
-
-        foreach ($postIds as $postId) {
-            $postId = (int) $postId;
-
-            if ($postId > 0) {
-                $cleanPostIds[$postId] = $postId;
-            }
-        }
-
-        return array_values($cleanPostIds);
     }
 }

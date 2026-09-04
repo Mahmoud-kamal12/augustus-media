@@ -15,10 +15,22 @@ class UserSeeder extends Seeder
         $userRows = [];
 
         for ($userId = 1; $userId <= $userCount; $userId++) {
+            $name = match ($userId) {
+                1 => 'Demo User',
+                2 => 'Augustus News',
+                default => "User {$userId}",
+            };
+
+            $email = match ($userId) {
+                1 => 'demo@example.com',
+                2 => 'augustus-news@example.com',
+                default => "user{$userId}@example.com",
+            };
+
             $userRows[] = [
                 'id' => $userId,
-                'name' => $this->nameFor($userId),
-                'email' => $this->emailFor($userId),
+                'name' => $name,
+                'email' => $email,
                 'password' => $password,
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
@@ -30,24 +42,6 @@ class UserSeeder extends Seeder
         }
 
         $this->insertUserRows($userRows);
-    }
-
-    private function nameFor(int $id): string
-    {
-        return match ($id) {
-            1 => 'Demo User',
-            2 => 'Augustus News',
-            default => "User {$id}",
-        };
-    }
-
-    private function emailFor(int $id): string
-    {
-        return match ($id) {
-            1 => 'demo@example.com',
-            2 => 'augustus-news@example.com',
-            default => "user{$id}@example.com",
-        };
     }
 
     private function insertUserRows(array &$userRows): void

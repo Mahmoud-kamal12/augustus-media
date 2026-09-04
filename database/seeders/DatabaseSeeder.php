@@ -23,9 +23,11 @@ class DatabaseSeeder extends Seeder
         DB::disableQueryLog();
         Cache::flush();
 
-        $userCount = $this->userCountFromConfig();
-        $postCount = $this->postCountFromConfig();
-        $insertChunkSize = $this->insertChunkSizeFromConfig();
+        $userCount = max(2, config('seeding.users'));
+        $postCount = max(1, config('seeding.posts'));
+        $followCount = max(0, min(config('seeding.follows'), $userCount * ($userCount - 1)));
+        $likeCount = max(0, min(config('seeding.likes'), $postCount * $userCount));
+        $insertChunkSize = max(100, config('seeding.chunk_size'));
 
         $this->truncateSeededTables();
 
@@ -42,43 +44,18 @@ class DatabaseSeeder extends Seeder
 
         $this->callWith(FollowSeeder::class, [
             'userCount' => $userCount,
-            'requiredFollowCount' => $this->followCountFromConfig($userCount),
+            'requiredFollowCount' => $followCount,
             'chunkSize' => $insertChunkSize,
         ]);
 
         $this->callWith(LikeSeeder::class, [
             'postCount' => $postCount,
             'userCount' => $userCount,
-            'requiredLikeCount' => $this->likeCountFromConfig($postCount, $userCount),
+            'requiredLikeCount' => $likeCount,
             'chunkSize' => $insertChunkSize,
         ]);
 
         $this->printSeedSummary();
-    }
-
-    private function userCountFromConfig(): int
-    {
-        return max(2, config('seeding.users'));
-    }
-
-    private function postCountFromConfig(): int
-    {
-        return max(1, config('seeding.posts'));
-    }
-
-    private function followCountFromConfig(int $userCount): int
-    {
-        return max(0, min(config('seeding.follows'), $userCount * ($userCount - 1)));
-    }
-
-    private function likeCountFromConfig(int $postCount, int $userCount): int
-    {
-        return max(0, min(config('seeding.likes'), $postCount * $userCount));
-    }
-
-    private function insertChunkSizeFromConfig(): int
-    {
-        return max(100, config('seeding.chunk_size'));
     }
 
     private function truncateSeededTables(): void

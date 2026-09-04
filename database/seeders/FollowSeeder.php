@@ -37,7 +37,7 @@ class FollowSeeder extends Seeder
             }
 
             for ($followerUserId = 1; $followerUserId <= $userCount && $followRowsCreated < $requiredFollowCount; $followerUserId++) {
-                $followedUserId = $this->followedUserIdFor($followerUserId, $followDistance, $userCount);
+                $followedUserId = (($followerUserId + $followDistance - 1) % $userCount) + 1;
 
                 if (isset($specialFollowPairs[$followerUserId][$followedUserId])) {
                     continue;
@@ -67,11 +67,6 @@ class FollowSeeder extends Seeder
         if (count($followRows) >= $chunkSize) {
             $this->insertFollowRows($followRows);
         }
-    }
-
-    private function followedUserIdFor(int $followerUserId, int $followDistance, int $userCount): int
-    {
-        return (($followerUserId + $followDistance - 1) % $userCount) + 1;
     }
 
     private function insertFollowRows(array &$followRows): void

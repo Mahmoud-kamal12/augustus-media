@@ -38,7 +38,7 @@ class NotifyFollowersOfNewPost implements ShouldQueue
                 ->where('followed_id', $post->user_id)
                 ->where('follower_id', '>', $lastFollowerId)
                 ->orderBy('follower_id')
-                ->limit($this->notificationChunkSize())
+                ->limit(config('feed.notifications.chunk_size'))
                 ->pluck('follower_id');
 
             if ($followerIds->isEmpty()) {
@@ -79,10 +79,5 @@ class NotifyFollowersOfNewPost implements ShouldQueue
             substr($hash, 16, 4),
             substr($hash, 20)
         );
-    }
-
-    private function notificationChunkSize(): int
-    {
-        return config('feed.notifications.chunk_size');
     }
 }
