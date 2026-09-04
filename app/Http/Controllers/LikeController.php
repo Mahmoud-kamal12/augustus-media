@@ -21,7 +21,7 @@ class LikeController extends Controller
         $user = $request->user();
 
         if ($this->likeService->like($user, $post)) {
-            $this->userFeedCache->forgetFirstPage($user);
+            $this->userFeedCache->invalidateFirstPage($user);
         }
 
         $post->refresh();
@@ -41,7 +41,7 @@ class LikeController extends Controller
         $user = $request->user();
 
         if ($this->likeService->unlike($user, $post)) {
-            $this->userFeedCache->forgetFirstPage($user);
+            $this->userFeedCache->invalidateFirstPage($user);
         }
 
         $post->refresh();

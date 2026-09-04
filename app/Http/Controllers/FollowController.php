@@ -28,7 +28,7 @@ class FollowController extends Controller
         }
 
         if ($this->followService->follow($currentUser, $userToFollow)) {
-            $this->userFeedCache->forgetFirstPage($currentUser);
+            $this->userFeedCache->invalidateFirstPage($currentUser);
         }
 
         $followResponseData = [
@@ -43,7 +43,7 @@ class FollowController extends Controller
         $currentUser = $request->user();
 
         if ($this->followService->unfollow($currentUser, $userToUnfollow)) {
-            $this->userFeedCache->forgetFirstPage($currentUser);
+            $this->userFeedCache->invalidateFirstPage($currentUser);
         }
 
         return ApiResponse::deleted('User unfollowed successfully.');

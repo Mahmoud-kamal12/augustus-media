@@ -17,10 +17,10 @@ class UserFeedService
         private readonly UserFeedCache $userFeedCache,
     ) {}
 
-    public function getFeedPage(User $user, int $postsPerPage, bool $useFirstPageCache, Request $request): array
+    public function getFeedPage(User $user, int $postsPerPage, bool $isFirstPage, Request $request): array
     {
-        if ($useFirstPageCache) {
-            $cachedFeedPage = $this->userFeedCache->getFirstPage($user);
+        if ($isFirstPage) {
+            $cachedFeedPage = $this->userFeedCache->getFirstPage($user, $postsPerPage);
 
             if ($cachedFeedPage !== null) {
                 return $cachedFeedPage;
@@ -35,8 +35,8 @@ class UserFeedService
         $feedPageResource = new FeedPageResource($postPaginator);
         $feedPage = $feedPageResource->toArray($request);
 
-        if ($useFirstPageCache) {
-            $this->userFeedCache->storeFirstPage($user, $feedPage);
+        if ($isFirstPage) {
+            $this->userFeedCache->storeFirstPage($user, $postsPerPage, $feedPage);
         }
 
         return $feedPage;

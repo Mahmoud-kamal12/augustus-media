@@ -141,6 +141,28 @@ class FeedApiTest extends TestCase
             ->assertJsonValidationErrors('per_page');
     }
 
+    public function test_first_feed_page_cache_keeps_each_page_size_separate(): void
+    {
+        $viewer = User::factory()->create();
+        $author = User::factory()->create();
+
+        $this->follow($viewer, $author);
+
+        Post::factory()->count(2)->for($author, 'author')->create();
+
+        Sanctum::actingAs($viewer);
+
+        $this->getJson('/feed?per_page=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.per_page', 1);
+
+        $this->getJson('/feed?per_page=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.per_page', 2);
+    }
+
     public function test_follow_invalidates_cached_first_feed_page(): void
     {
         $viewer = User::factory()->create();

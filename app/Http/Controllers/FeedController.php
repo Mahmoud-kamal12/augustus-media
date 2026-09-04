@@ -16,16 +16,14 @@ class FeedController extends Controller
     public function index(FeedRequest $request): JsonResponse
     {
         $user = $request->user();
-        $feedPagination = config('feed.pagination');
         $feedFilters = $request->validated();
-        $postsPerPage = (int) ($feedFilters['per_page'] ?? $feedPagination['default_per_page']);
-        $useFirstPageCache = ! $request->query->has('cursor')
-            && ! $request->query->has('per_page');
+        $postsPerPage = (int) $feedFilters['per_page'];
+        $isFirstPage = ! $request->query->has('cursor');
 
         $feedPage = $this->userFeedService->getFeedPage(
             user: $user,
             postsPerPage: $postsPerPage,
-            useFirstPageCache: $useFirstPageCache,
+            isFirstPage: $isFirstPage,
             request: $request,
         );
 
