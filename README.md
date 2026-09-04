@@ -64,7 +64,7 @@ The PHPUnit suite uses SQLite in-memory, array cache, and sync queue mode so tes
 
 ## Seed Data
 
-The seeder is configurable for local smoke tests and larger query-plan checks.
+The seeder is configurable through `config/seeding.php`, with `.env` overrides for local smoke tests and larger query-plan checks.
 
 ```bash
 docker compose exec -e SEED_USERS=10000 -e SEED_POSTS=100000 -e SEED_FOLLOWS=200000 -e SEED_LIKES=500000 app php artisan db:seed --force

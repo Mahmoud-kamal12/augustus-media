@@ -17,12 +17,12 @@ class DatabaseSeeder extends Seeder
         DB::disableQueryLog();
         Cache::flush();
 
-        $this->chunkSize = max(100, (int) env('SEED_CHUNK_SIZE', 1000));
+        $this->chunkSize = max(100, (int) config('seeding.chunk_size'));
 
-        $userCount = max(2, (int) env('SEED_USERS', 10000));
-        $postCount = max(1, (int) env('SEED_POSTS', 100000));
-        $followCount = min((int) env('SEED_FOLLOWS', 200000), $userCount * ($userCount - 1));
-        $likeCount = min((int) env('SEED_LIKES', 500000), $postCount * $userCount);
+        $userCount = max(2, (int) config('seeding.users'));
+        $postCount = max(1, (int) config('seeding.posts'));
+        $followCount = min((int) config('seeding.follows'), $userCount * ($userCount - 1));
+        $likeCount = min((int) config('seeding.likes'), $postCount * $userCount);
 
         $this->truncateSeededTables();
 
