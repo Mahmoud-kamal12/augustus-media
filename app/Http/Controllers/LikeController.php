@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Services\FeedCache;
 use App\Services\LikeService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,11 +24,11 @@ class LikeController extends Controller
             $this->feedCache->forgetFirstPage($user);
         }
 
-        return response()->json([
+        return ApiResponse::ok([
             'liked' => true,
             'is_liked' => true,
             'likes_count' => $this->likeService->countFor($post),
-        ]);
+        ], 'Post liked successfully.');
     }
 
     public function destroy(Request $request, Post $post): JsonResponse
@@ -38,10 +39,10 @@ class LikeController extends Controller
             $this->feedCache->forgetFirstPage($user);
         }
 
-        return response()->json([
+        return ApiResponse::ok([
             'liked' => false,
             'is_liked' => false,
             'likes_count' => $this->likeService->countFor($post),
-        ]);
+        ], 'Post unliked successfully.');
     }
 }

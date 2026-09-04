@@ -7,9 +7,9 @@ use App\Http\Resources\PostResource;
 use App\Jobs\NotifyFollowersOfNewPost;
 use App\Models\Post;
 use App\Services\LikeService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -30,12 +30,13 @@ class PostController extends Controller
         $post->likes_count = 0;
         $post->is_liked = false;
 
-        return (new PostResource($post->load('author')))
-            ->response()
-            ->setStatusCode(201);
+        return ApiResponse::created(
+            (new PostResource($post->load('author')))->resolve($request),
+            'Post created successfully.'
+        );
     }
 
-    public function show(Request $request, Post $post): PostResource
+    public function show(Request $request, Post $post): JsonResponse
     {
         $post->load('author');
         $post->likes_count = $this->likeService->countFor($post);
@@ -43,15 +44,18 @@ class PostController extends Controller
         $user = $request->user('sanctum');
         $post->is_liked = $user ? $this->likeService->isLikedBy($post, $user) : false;
 
-        return new PostResource($post);
+        return ApiResponse::ok(
+            (new PostResource($post))->resolve($request),
+            'Post fetched successfully.'
+        );
     }
 
-    public function destroy(Post $post): Response
+    public function destroy(Post $post): JsonResponse
     {
         Gate::authorize('delete', $post);
 
         $post->delete();
 
-        return response()->noContent();
+        return ApiResponse::deleted('Post deleted successfully.');
     }
 }

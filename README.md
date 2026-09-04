@@ -105,6 +105,8 @@ DELETE /posts/{post}/like
 GET    /user
 ```
 
+Delete endpoints return a JSON envelope with `success: true` instead of an empty `204` response, so clients can handle every controller response the same way.
+
 `GET /feed` accepts:
 
 ```text
@@ -114,12 +116,27 @@ cursor: returned by meta.next_cursor or meta.previous_cursor
 
 Feed pagination defaults and cache TTLs live in `config/feed.php`.
 
+Successful controller responses use the same envelope:
+
+```json
+{
+  "success": true,
+  "message": "Feed fetched successfully.",
+  "data": {},
+  "meta": {}
+}
+```
+
+Validation, auth, authorization, and not-found API errors use the same response family with `success: false` and an `errors` object when field errors exist.
+
 `likes_count` is a short-TTL visible counter and can lag behind writes by a few seconds. `is_liked` is returned from the authenticated user's current database state.
 
 Example feed response:
 
 ```json
 {
+  "success": true,
+  "message": "Feed fetched successfully.",
   "data": [
     {
       "id": 1,

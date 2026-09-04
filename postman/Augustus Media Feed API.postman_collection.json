@@ -90,9 +90,9 @@
                   "    pm.collectionVariables.set(key, String(value));",
                   "    if (pm.environment.name) pm.environment.set(key, String(value));",
                   "}",
-                  "setVar(\"token\", json.token);",
-                  "setVar(\"current_user_id\", json.user && json.user.id);",
-                  "setVar(\"current_user_email\", json.user && json.user.email);"
+                  "setVar(\"token\", json.data && json.data.token);",
+                  "setVar(\"current_user_id\", json.data && json.data.user && json.data.user.id);",
+                  "setVar(\"current_user_email\", json.data && json.data.user && json.data.user.email);"
                 ]
               }
             }
@@ -147,9 +147,9 @@
                   "    pm.collectionVariables.set(key, String(value));",
                   "    if (pm.environment.name) pm.environment.set(key, String(value));",
                   "}",
-                  "setVar(\"token\", json.token);",
-                  "setVar(\"current_user_id\", json.user && json.user.id);",
-                  "setVar(\"current_user_email\", json.user && json.user.email);"
+                  "setVar(\"token\", json.data && json.data.token);",
+                  "setVar(\"current_user_id\", json.data && json.data.user && json.data.user.id);",
+                  "setVar(\"current_user_email\", json.data && json.data.user && json.data.user.email);"
                 ]
               }
             }

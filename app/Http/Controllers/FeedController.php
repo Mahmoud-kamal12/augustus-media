@@ -6,6 +6,7 @@ use App\Http\Requests\FeedRequest;
 use App\Http\Resources\FeedPageResource;
 use App\Services\FeedCache;
 use App\Services\FeedService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
 class FeedController extends Controller
@@ -25,10 +26,12 @@ class FeedController extends Controller
                 }
             );
 
-            return response()->json($responseBody);
+            return ApiResponse::ok($responseBody['data'], 'Feed fetched successfully.', $responseBody['meta']);
         }
 
-        return response()->json($this->buildResponseBody($request));
+        $responseBody = $this->buildResponseBody($request);
+
+        return ApiResponse::ok($responseBody['data'], 'Feed fetched successfully.', $responseBody['meta']);
     }
 
     private function buildResponseBody(FeedRequest $request): array

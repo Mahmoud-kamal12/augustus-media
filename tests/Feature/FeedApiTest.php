@@ -32,14 +32,30 @@ class FeedApiTest extends TestCase
             'password_confirmation' => 'password',
         ])
             ->assertCreated()
-            ->assertJsonStructure(['user' => ['id', 'name', 'email'], 'token']);
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'message',
+                'data' => [
+                    'user' => ['id', 'name', 'email', 'created_at'],
+                    'token',
+                ],
+                'meta',
+            ]);
 
         $this->postJson('/login', [
             'email' => 'mona@example.com',
             'password' => 'password',
         ])
             ->assertOk()
-            ->assertJsonStructure(['user' => ['id', 'name', 'email'], 'token']);
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'message',
+                'data' => [
+                    'user' => ['id', 'name', 'email', 'created_at'],
+                    'token',
+                ],
+                'meta',
+            ]);
     }
 
     public function test_follow_self_is_rejected_and_follow_is_duplicate_safe(): void
@@ -51,15 +67,17 @@ class FeedApiTest extends TestCase
 
         $this->postJson("/follow/{$viewer->id}")
             ->assertUnprocessable()
+            ->assertJsonPath('success', false)
             ->assertJsonValidationErrors('user_id');
 
         $this->postJson("/follow/{$author->id}")
             ->assertOk()
-            ->assertJsonPath('followed', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.followed', true);
 
         $this->postJson("/follow/{$author->id}")
             ->assertOk()
-            ->assertJsonPath('followed', true);
+            ->assertJsonPath('data.followed', true);
 
         $this->assertDatabaseCount('follows', 1);
     }
@@ -98,6 +116,7 @@ class FeedApiTest extends TestCase
 
         $this->getJson('/feed?per_page=10')
             ->assertOk()
+            ->assertJsonPath('success', true)
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.id', $newerPost->id)
             ->assertJsonPath('data.0.author.id', $author->id)
@@ -127,6 +146,19 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data.0.id', $post->id);
     }
 
+    public function test_current_user_uses_standard_response_envelope(): void
+    {
+        $viewer = User::factory()->create();
+
+        Sanctum::actingAs($viewer);
+
+        $this->getJson('/user')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.id', $viewer->id)
+            ->assertJsonStructure(['message', 'data', 'meta']);
+    }
+
     public function test_like_is_duplicate_safe_and_unlike_is_idempotent(): void
     {
         $viewer = User::factory()->create();
@@ -136,25 +168,25 @@ class FeedApiTest extends TestCase
 
         $this->postJson("/posts/{$post->id}/like")
             ->assertOk()
-            ->assertJsonPath('likes_count', 1)
-            ->assertJsonPath('is_liked', true);
+            ->assertJsonPath('data.likes_count', 1)
+            ->assertJsonPath('data.is_liked', true);
 
         $this->postJson("/posts/{$post->id}/like")
             ->assertOk()
-            ->assertJsonPath('likes_count', 1)
-            ->assertJsonPath('is_liked', true);
+            ->assertJsonPath('data.likes_count', 1)
+            ->assertJsonPath('data.is_liked', true);
 
         $this->assertDatabaseCount('likes', 1);
 
         $this->deleteJson("/posts/{$post->id}/like")
             ->assertOk()
-            ->assertJsonPath('is_liked', false)
-            ->assertJsonStructure(['likes_count']);
+            ->assertJsonPath('data.is_liked', false)
+            ->assertJsonStructure(['data' => ['likes_count']]);
 
         $this->deleteJson("/posts/{$post->id}/like")
             ->assertOk()
-            ->assertJsonPath('is_liked', false)
-            ->assertJsonStructure(['likes_count']);
+            ->assertJsonPath('data.is_liked', false)
+            ->assertJsonStructure(['data' => ['likes_count']]);
 
         $this->assertDatabaseCount('likes', 0);
     }
@@ -182,9 +214,27 @@ class FeedApiTest extends TestCase
         Sanctum::actingAs($viewer);
 
         $this->deleteJson("/posts/{$post->id}")
-            ->assertForbidden();
+            ->assertForbidden()
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure(['message', 'data', 'meta', 'errors']);
 
         $this->assertDatabaseHas('posts', ['id' => $post->id]);
+    }
+
+    public function test_user_can_delete_own_post_with_standard_response_envelope(): void
+    {
+        $viewer = User::factory()->create();
+        $post = Post::factory()->for($viewer, 'author')->create();
+
+        Sanctum::actingAs($viewer);
+
+        $this->deleteJson("/posts/{$post->id}")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data', null)
+            ->assertJsonStructure(['message', 'data', 'meta']);
+
+        $this->assertDatabaseMissing('posts', ['id' => $post->id]);
     }
 
     public function test_notification_job_writes_one_record_per_follower_idempotently(): void

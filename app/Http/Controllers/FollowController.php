@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Services\FeedCache;
 use App\Services\FollowService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 
 class FollowController extends Controller
@@ -31,12 +31,12 @@ class FollowController extends Controller
             $this->feedCache->forgetFirstPage($currentUser);
         }
 
-        return response()->json([
+        return ApiResponse::ok([
             'followed' => true,
-        ]);
+        ], 'User followed successfully.');
     }
 
-    public function destroy(Request $request, User $userToUnfollow): Response
+    public function destroy(Request $request, User $userToUnfollow): JsonResponse
     {
         $currentUser = $request->user();
 
@@ -44,6 +44,6 @@ class FollowController extends Controller
             $this->feedCache->forgetFirstPage($currentUser);
         }
 
-        return response()->noContent();
+        return ApiResponse::deleted('User unfollowed successfully.');
     }
 }

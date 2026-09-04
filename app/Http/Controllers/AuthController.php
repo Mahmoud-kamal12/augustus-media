@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -15,10 +17,10 @@ class AuthController extends Controller
     {
         $user = User::create($request->validated());
 
-        return response()->json([
-            'user' => $user,
+        return ApiResponse::created([
+            'user' => (new UserResource($user))->resolve($request),
             'token' => $user->createToken('api')->plainTextToken,
-        ], 201);
+        ], 'User registered successfully.');
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -32,9 +34,9 @@ class AuthController extends Controller
             ]);
         }
 
-        return response()->json([
-            'user' => $user,
+        return ApiResponse::ok([
+            'user' => (new UserResource($user))->resolve($request),
             'token' => $user->createToken('api')->plainTextToken,
-        ]);
+        ], 'User logged in successfully.');
     }
 }
