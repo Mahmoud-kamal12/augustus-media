@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Post extends Model
 {
@@ -29,21 +29,14 @@ class Post extends Model
         ];
     }
 
-    public static function addLikesCountAndViewerState(Builder $postQuery, int $viewerId): Builder
-    {
-        $postTable = self::TABLE;
-        $likeTable = Like::TABLE;
-        $isLikedColumnSql = "exists (select 1 from {$likeTable} where {$likeTable}.post_id = {$postTable}.id and {$likeTable}.user_id = ?) as is_liked";
-
-        $postQuery->withCount('likedBy as likes_count');
-        $postQuery->selectRaw($isLikedColumnSql, [$viewerId]);
-
-        return $postQuery;
-    }
-
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function likes(): HasMany
+    {
+        return $this->hasMany(Like::class);
     }
 
     public function likedBy(): BelongsToMany

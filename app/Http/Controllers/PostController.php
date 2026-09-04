@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePostRequest;
 use App\Http\Resources\PostResource;
 use App\Jobs\NotifyFollowersOfNewPost;
+use App\Models\Like;
 use App\Models\Post;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -34,14 +35,22 @@ class PostController extends Controller
     public function show(Request $request, Post $post): JsonResponse
     {
         $viewer = $request->user('sanctum');
-        $viewerId = $viewer ? $viewer->id : 0;
 
-        $postQuery = Post::query()
+        $post = Post::query()
             ->whereKey($post->id)
-            ->with('author:id,name');
+            ->with('author:id,name')
+            ->withCount('likes')
+            ->firstOrFail();
 
-        $postQuery = Post::addLikesCountAndViewerState($postQuery, $viewerId);
-        $post = $postQuery->firstOrFail();
+        $post->is_liked = false;
+
+        if ($viewer) {
+            $post->is_liked = Like::query()
+                ->where('post_id', $post->id)
+                ->where('user_id', $viewer->id)
+                ->exists();
+        }
+
         $postResource = new PostResource($post);
         $responseData = $postResource->resolve($request);
 
