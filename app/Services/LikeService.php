@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class LikeService
@@ -26,77 +25,41 @@ class LikeService
             ->delete() > 0;
     }
 
-    public function countFor(Post $post): int
-    {
-        return $this->countsFor([$post->id])[$post->id] ?? 0;
-    }
-
-    public function countsFor(array $postIds): array
+    public function summariesForPosts(User $viewer, array $postIds): array
     {
         if ($postIds === []) {
             return [];
         }
 
-        $cacheKeysByPostId = [];
-
-        foreach ($postIds as $postId) {
-            $cacheKeysByPostId[$postId] = "likes_count:{$postId}";
-        }
-
-        $cachedCountsByKey = Cache::many(array_values($cacheKeysByPostId));
-        $likeCountsByPostId = [];
-        $postIdsMissingFromCache = [];
-
-        foreach ($cacheKeysByPostId as $postId => $cacheKey) {
-            if ($cachedCountsByKey[$cacheKey] !== null) {
-                $likeCountsByPostId[$postId] = (int) $cachedCountsByKey[$cacheKey];
-
-                continue;
-            }
-
-            $postIdsMissingFromCache[] = $postId;
-        }
-
-        if ($postIdsMissingFromCache !== []) {
-            $databaseCountsByPostId = DB::table('likes')
-                ->select('post_id', DB::raw('COUNT(*) as likes_count'))
-                ->whereIn('post_id', $postIdsMissingFromCache)
-                ->groupBy('post_id')
-                ->pluck('likes_count', 'post_id')
-                ->all();
-
-            $valuesToCache = [];
-
-            foreach ($postIdsMissingFromCache as $postId) {
-                $likeCount = (int) ($databaseCountsByPostId[$postId] ?? 0);
-                $likeCountsByPostId[$postId] = $likeCount;
-                $valuesToCache[$cacheKeysByPostId[$postId]] = $likeCount;
-            }
-
-            Cache::putMany($valuesToCache, config('feed.cache.like_count_ttl'));
-        }
-
-        return $likeCountsByPostId;
-    }
-
-    public function isLikedBy(Post $post, User $user): bool
-    {
-        return DB::table('likes')
-            ->where('post_id', $post->id)
-            ->where('user_id', $user->id)
-            ->exists();
-    }
-
-    public function likedPostIds(User $user, array $postIds): array
-    {
-        if ($postIds === []) {
-            return [];
-        }
-
-        return DB::table('likes')
-            ->where('user_id', $user->id)
+        $rows = DB::table('likes')
             ->whereIn('post_id', $postIds)
-            ->pluck('post_id')
-            ->all();
+            ->selectRaw('post_id, COUNT(*) as likes_count, MAX(user_id = ?) as is_liked', [$viewer->id])
+            ->groupBy('post_id')
+            ->get();
+
+        $summariesByPostId = [];
+
+        foreach ($rows as $row) {
+            $summariesByPostId[$row->post_id] = [
+                'likes_count' => (int) $row->likes_count,
+                'is_liked' => (bool) $row->is_liked,
+            ];
+        }
+
+        return $summariesByPostId;
+    }
+
+    public function summaryForPost(Post $post, ?User $viewer): array
+    {
+        $viewerId = $viewer?->id ?? 0;
+        $row = DB::table('likes')
+            ->where('post_id', $post->id)
+            ->selectRaw('COUNT(*) as likes_count, MAX(user_id = ?) as is_liked', [$viewerId])
+            ->first();
+
+        return [
+            'likes_count' => (int) $row->likes_count,
+            'is_liked' => (bool) $row->is_liked,
+        ];
     }
 }

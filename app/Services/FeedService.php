@@ -23,12 +23,12 @@ class FeedService
 
         $posts = $paginator->getCollection();
         $postIds = $posts->modelKeys();
-        $likeCountsByPostId = $this->likeService->countsFor($postIds);
-        $likedPostIds = array_flip($this->likeService->likedPostIds($user, $postIds));
+        $likeSummariesByPostId = $this->likeService->summariesForPosts($user, $postIds);
 
-        $posts->each(function (Post $post) use ($likeCountsByPostId, $likedPostIds): void {
-            $post->likes_count = $likeCountsByPostId[$post->id] ?? 0;
-            $post->is_liked = isset($likedPostIds[$post->id]);
+        $posts->each(function (Post $post) use ($likeSummariesByPostId): void {
+            $likeSummary = $likeSummariesByPostId[$post->id] ?? null;
+            $post->likes_count = $likeSummary['likes_count'] ?? 0;
+            $post->is_liked = $likeSummary['is_liked'] ?? false;
         });
 
         return $paginator;

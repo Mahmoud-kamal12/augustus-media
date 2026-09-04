@@ -129,7 +129,7 @@ Successful controller responses use the same envelope:
 
 Validation, auth, authorization, and not-found API errors use the same response family with `success: false` and an `errors` object when field errors exist.
 
-`likes_count` is a short-TTL visible counter and can lag behind writes by a few seconds. `is_liked` is returned from the authenticated user's current database state.
+`likes_count` and `is_liked` are returned from the current database state. Feed pages load both values with one aggregate query for the posts in the page.
 
 Example feed response:
 
@@ -206,20 +206,17 @@ The API uses cursor pagination instead of offset pagination. This avoids deep-pa
 N+1 prevention:
 
 - Authors are eager loaded with `author:id,name`.
-- Like counts are fetched in one grouped query for the current page.
-- Current user's liked post ids are fetched in one query for the current page.
+- Like counts and the current user's liked state are fetched together in one grouped query for the current page.
 
 ## Caching
 
 Redis cache is used for:
 
-- Like count keys: `likes_count:{post_id}`, 10 second TTL.
 - Default first feed page: `feed:first-page:user:{id}:v1`, 30 second TTL.
 
 Invalidation:
 
-- `like` and `unlike` do not forget the global post like-count key on every write.
-- Like counts are allowed to be a few seconds behind reality; the short TTL avoids cache thrashing on viral posts.
+- Like summaries are loaded with one aggregate query per feed page. The first page response cache covers the hottest read path without maintaining one Redis key per post.
 - `like` and `unlike` forget the current user's first feed page because `is_liked` changes.
 - `follow` and `unfollow` forget the current user's first feed page because membership changes.
 - New posts do not invalidate every follower's feed cache. At high scale that becomes expensive, so follower feeds rely on the short TTL unless a future fan-out-on-write feed table is introduced.
@@ -255,19 +252,12 @@ same join path with index condition on created_at/id cursor
 actual time: about 31.1 ms
 ```
 
-Batched like counts for 20 feed posts:
+Batched like summary for 20 feed posts:
 
 ```text
 covering PRIMARY range scan on likes(post_id, user_id)
 10,095 matching like rows because the seed includes a viral post
 actual time: about 2.5 ms
-```
-
-Batched current-user liked state for 20 feed posts:
-
-```text
-covering range scan on MySQL's user_id foreign key index
-actual time: about 0.03 ms
 ```
 
 These numbers are good enough for the assignment implementation. The feed query still performs a top-N sort across candidate posts from followed users, which is the expected trade-off for fan-out on read.
@@ -276,11 +266,11 @@ These numbers are good enough for the assignment implementation. The feed query 
 
 - No microservices: the task is about relational feed design, query planning, cache strategy, and Laravel code quality.
 - No precomputed feed table in the first version: fan-out on read keeps writes simple and avoids storage amplification before it is proven necessary.
-- No global like-count cache invalidation on every like/unlike: viral posts would repeatedly destroy their hottest cache key.
+- No per-post like-count cache: the extra Redis reads/writes are not worth it for a cursor page capped at 50 posts, especially while the first feed page is already cached.
 - No denormalized `likes_count` on `posts`: it would turn viral posts into hot write rows.
 - No extra database indexes beyond the measured access paths: redundant indexes slow writes and increase storage.
 - No cache entry for every cursor page: the first page carries the highest repeated-read value.
-- No complex distributed cache locks yet: batched Redis reads plus one grouped SQL query for misses are enough for this scope.
+- No complex distributed cache locks yet: one cached first page per user is enough for this scope.
 
 ## Scaling Path
 

@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Jobs\NotifyFollowersOfNewPost;
 use App\Models\Post;
 use App\Models\User;
-use App\Services\LikeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -191,19 +190,31 @@ class FeedApiTest extends TestCase
         $this->assertDatabaseCount('likes', 0);
     }
 
-    public function test_like_count_cache_is_not_invalidated_on_each_write(): void
+    public function test_post_show_returns_current_like_summary(): void
     {
         $viewer = User::factory()->create();
+        $otherUser = User::factory()->create();
         $post = Post::factory()->create();
-        $cacheKey = "likes_count:{$post->id}";
 
-        Cache::put($cacheKey, 42, 10);
+        DB::table('likes')->insert([
+            [
+                'post_id' => $post->id,
+                'user_id' => $viewer->id,
+                'created_at' => now(),
+            ],
+            [
+                'post_id' => $post->id,
+                'user_id' => $otherUser->id,
+                'created_at' => now(),
+            ],
+        ]);
 
-        app(LikeService::class)->like($viewer, $post);
-        $this->assertSame(42, Cache::get($cacheKey));
+        Sanctum::actingAs($viewer);
 
-        app(LikeService::class)->unlike($viewer, $post);
-        $this->assertSame(42, Cache::get($cacheKey));
+        $this->getJson("/posts/{$post->id}")
+            ->assertOk()
+            ->assertJsonPath('data.likes_count', 2)
+            ->assertJsonPath('data.is_liked', true);
     }
 
     public function test_user_cannot_delete_another_users_post(): void

@@ -39,10 +39,9 @@ class PostController extends Controller
     public function show(Request $request, Post $post): JsonResponse
     {
         $post->load('author');
-        $post->likes_count = $this->likeService->countFor($post);
-
-        $user = $request->user('sanctum');
-        $post->is_liked = $user ? $this->likeService->isLikedBy($post, $user) : false;
+        $likeSummary = $this->likeService->summaryForPost($post, $request->user('sanctum'));
+        $post->likes_count = $likeSummary['likes_count'];
+        $post->is_liked = $likeSummary['is_liked'];
 
         return ApiResponse::ok(
             (new PostResource($post))->resolve($request),
