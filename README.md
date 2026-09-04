@@ -112,6 +112,8 @@ per_page: 1..50, default 20
 cursor: returned by meta.next_cursor or meta.previous_cursor
 ```
 
+Feed pagination defaults and cache TTLs live in `config/feed.php`.
+
 `likes_count` is a short-TTL visible counter and can lag behind writes by a few seconds. `is_liked` is returned from the authenticated user's current database state.
 
 Example feed response:

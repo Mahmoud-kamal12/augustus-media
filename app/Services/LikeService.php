@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class LikeService
 {
-    private const COUNT_TTL_SECONDS = 10;
-
     public function like(User $user, Post $post): bool
     {
         return DB::table('likes')->insertOrIgnore([
@@ -31,11 +29,7 @@ class LikeService
 
     public function countsFor(iterable $postIds): array
     {
-        $ids = Collection::make($postIds)
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
+        $ids = $this->postIds($postIds);
 
         if ($ids->isEmpty()) {
             return [];
@@ -71,7 +65,7 @@ class LikeService
                 $valuesToCache[$this->countKey($id)] = $count;
             }
 
-            Cache::putMany($valuesToCache, self::COUNT_TTL_SECONDS);
+            Cache::putMany($valuesToCache, config('feed.cache.like_count_ttl'));
         }
 
         return $counts;
@@ -79,11 +73,7 @@ class LikeService
 
     public function likedPostIds(User $user, iterable $postIds): array
     {
-        $ids = Collection::make($postIds)
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
+        $ids = $this->postIds($postIds);
 
         if ($ids->isEmpty()) {
             return [];
@@ -100,5 +90,14 @@ class LikeService
     private function countKey(int $postId): string
     {
         return "likes_count:{$postId}";
+    }
+
+    private function postIds(iterable $postIds): Collection
+    {
+        return Collection::make($postIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
     }
 }

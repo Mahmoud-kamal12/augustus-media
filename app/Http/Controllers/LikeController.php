@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
-use App\Services\FeedService;
+use App\Services\FeedCache;
 use App\Services\LikeService;
 use Illuminate\Http\JsonResponse;
 
@@ -11,7 +11,7 @@ class LikeController extends Controller
 {
     public function __construct(
         private LikeService $likes,
-        private FeedService $feeds,
+        private FeedCache $feedCache,
     ) {}
 
     public function store(Post $post): JsonResponse
@@ -19,7 +19,7 @@ class LikeController extends Controller
         $user = request()->user();
 
         if ($this->likes->like($user, $post)) {
-            $this->feeds->forgetFirstPage($user);
+            $this->feedCache->forgetFirstPage($user);
         }
 
         return response()->json([
@@ -34,7 +34,7 @@ class LikeController extends Controller
         $user = request()->user();
 
         if ($this->likes->unlike($user, $post)) {
-            $this->feeds->forgetFirstPage($user);
+            $this->feedCache->forgetFirstPage($user);
         }
 
         return response()->json([

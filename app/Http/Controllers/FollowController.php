@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\FeedService;
+use App\Services\FeedCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class FollowController extends Controller
 {
-    public function __construct(private FeedService $feeds) {}
+    public function __construct(private FeedCache $feedCache) {}
 
     public function store(int $user_id): JsonResponse
     {
@@ -31,7 +31,7 @@ class FollowController extends Controller
         ]);
 
         if ($inserted === 1) {
-            $this->feeds->forgetFirstPage($currentUser);
+            $this->feedCache->forgetFirstPage($currentUser);
         }
 
         return response()->json([
@@ -50,7 +50,7 @@ class FollowController extends Controller
             ->delete();
 
         if ($deleted > 0) {
-            $this->feeds->forgetFirstPage($currentUser);
+            $this->feedCache->forgetFirstPage($currentUser);
         }
 
         return response()->noContent();
