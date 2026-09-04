@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Follow;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class FollowSeeder extends Seeder
@@ -76,7 +76,7 @@ class FollowSeeder extends Seeder
             return;
         }
 
-        DB::table('follows')->insertOrIgnore($followRows);
+        Follow::query()->insertOrIgnore($followRows);
         $followRows = [];
     }
 }

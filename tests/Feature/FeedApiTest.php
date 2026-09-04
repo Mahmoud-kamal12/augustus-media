@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Jobs\NotifyFollowersOfNewPost;
+use App\Models\Follow;
+use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -78,7 +80,7 @@ class FeedApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.followed', true);
 
-        $this->assertDatabaseCount('follows', 1);
+        $this->assertDatabaseCount(Follow::class, 1);
     }
 
     public function test_feed_returns_followed_posts_newest_first_with_like_state(): void
@@ -105,7 +107,7 @@ class FeedApiTest extends TestCase
             'updated_at' => now()->addMinute(),
         ]);
 
-        DB::table('likes')->insert([
+        Like::query()->insert([
             'post_id' => $newerPost->id,
             'user_id' => $viewer->id,
             'created_at' => now(),
@@ -175,7 +177,7 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data.likes_count', 1)
             ->assertJsonPath('data.is_liked', true);
 
-        $this->assertDatabaseCount('likes', 1);
+        $this->assertDatabaseCount(Like::class, 1);
 
         $this->deleteJson("/posts/{$post->id}/like")
             ->assertOk()
@@ -187,7 +189,7 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data.is_liked', false)
             ->assertJsonStructure(['data' => ['likes_count']]);
 
-        $this->assertDatabaseCount('likes', 0);
+        $this->assertDatabaseCount(Like::class, 0);
     }
 
     public function test_post_show_returns_current_like_summary(): void
@@ -196,7 +198,7 @@ class FeedApiTest extends TestCase
         $otherUser = User::factory()->create();
         $post = Post::factory()->create();
 
-        DB::table('likes')->insert([
+        Like::query()->insert([
             [
                 'post_id' => $post->id,
                 'user_id' => $viewer->id,
@@ -229,7 +231,7 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonStructure(['message', 'data', 'meta', 'errors']);
 
-        $this->assertDatabaseHas('posts', ['id' => $post->id]);
+        $this->assertDatabaseHas(Post::class, ['id' => $post->id]);
     }
 
     public function test_user_can_delete_own_post_with_standard_response_envelope(): void
@@ -245,7 +247,7 @@ class FeedApiTest extends TestCase
             ->assertJsonPath('data', null)
             ->assertJsonStructure(['message', 'data', 'meta']);
 
-        $this->assertDatabaseMissing('posts', ['id' => $post->id]);
+        $this->assertDatabaseMissing(Post::class, ['id' => $post->id]);
     }
 
     public function test_notification_job_writes_one_record_per_follower_idempotently(): void
@@ -264,8 +266,8 @@ class FeedApiTest extends TestCase
         $secondJobRun = new NotifyFollowersOfNewPost($post->id);
         $secondJobRun->handle();
 
-        $this->assertDatabaseCount('notifications', 2);
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseCount(DatabaseNotification::class, 2);
+        $this->assertDatabaseHas(DatabaseNotification::class, [
             'notifiable_type' => User::class,
             'notifiable_id' => $followers->first()->id,
             'type' => 'App\\Notifications\\NewPostNotification',
@@ -274,7 +276,7 @@ class FeedApiTest extends TestCase
 
     private function follow(User $follower, User $author): void
     {
-        DB::table('follows')->insert([
+        Follow::query()->insert([
             'follower_id' => $follower->id,
             'followed_id' => $author->id,
             'created_at' => now(),

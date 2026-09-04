@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Follow extends Model
 {
+    public const TABLE = 'follows';
+
     public $incrementing = false;
 
     public $timestamps = false;
+
+    protected $table = self::TABLE;
 
     protected $fillable = [
         'follower_id',

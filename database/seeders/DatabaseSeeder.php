@@ -2,20 +2,32 @@
 
 namespace Database\Seeders;
 
+use App\Models\Follow;
+use App\Models\Like;
+use App\Models\Post;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class DatabaseSeeder extends Seeder
 {
-    private const SEEDED_TABLES = [
-        'personal_access_tokens',
-        'notifications',
-        'likes',
-        'follows',
-        'posts',
-        'users',
+    private const SEEDED_MODELS = [
+        PersonalAccessToken::class,
+        DatabaseNotification::class,
+        Like::class,
+        Follow::class,
+        Post::class,
+        User::class,
+    ];
+
+    private const SUMMARY_MODELS = [
+        User::class,
+        Post::class,
+        Follow::class,
+        Like::class,
     ];
 
     public function run(): void
@@ -76,9 +88,12 @@ class DatabaseSeeder extends Seeder
     {
         Schema::disableForeignKeyConstraints();
 
-        foreach (self::SEEDED_TABLES as $table) {
+        foreach (self::SEEDED_MODELS as $modelClass) {
+            $model = new $modelClass;
+            $table = $model->getTable();
+
             if (Schema::hasTable($table)) {
-                DB::table($table)->truncate();
+                $modelClass::query()->truncate();
             }
         }
 
@@ -91,8 +106,11 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        foreach (['users', 'posts', 'follows', 'likes'] as $table) {
-            $rowCount = DB::table($table)->count();
+        foreach (self::SUMMARY_MODELS as $modelClass) {
+            $model = new $modelClass;
+            $table = $model->getTable();
+            $rowCount = $modelClass::query()->count();
+
             $this->command->info("{$table}: {$rowCount}");
         }
 

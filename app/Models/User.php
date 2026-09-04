@@ -16,6 +16,10 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    public const TABLE = 'users';
+
+    protected $table = self::TABLE;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -55,19 +59,19 @@ class User extends Authenticatable
 
     public function following(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'followed_id')
+        return $this->belongsToMany(User::class, Follow::TABLE, 'follower_id', 'followed_id')
             ->withPivot('created_at');
     }
 
     public function followers(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'follows', 'followed_id', 'follower_id')
+        return $this->belongsToMany(User::class, Follow::TABLE, 'followed_id', 'follower_id')
             ->withPivot('created_at');
     }
 
     public function likedPosts(): BelongsToMany
     {
-        return $this->belongsToMany(Post::class, 'likes')
+        return $this->belongsToMany(Post::class, Like::TABLE)
             ->withPivot('created_at');
     }
 }

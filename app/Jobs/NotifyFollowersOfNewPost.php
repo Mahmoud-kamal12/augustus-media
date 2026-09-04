@@ -2,12 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Models\Follow;
 use App\Models\Post;
 use App\Models\User;
 use App\Notifications\NewPostNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Notifications\DatabaseNotification;
 
 class NotifyFollowersOfNewPost implements ShouldQueue
 {
@@ -35,7 +36,7 @@ class NotifyFollowersOfNewPost implements ShouldQueue
         $lastFollowerId = 0;
 
         while (true) {
-            $followerIds = DB::table('follows')
+            $followerIds = Follow::query()
                 ->where('followed_id', $post->user_id)
                 ->where('follower_id', '>', $lastFollowerId)
                 ->orderBy('follower_id')
@@ -62,7 +63,7 @@ class NotifyFollowersOfNewPost implements ShouldQueue
                 ];
             }
 
-            DB::table('notifications')->insertOrIgnore($notificationRows);
+            DatabaseNotification::query()->insertOrIgnore($notificationRows);
 
             $lastFollowerId = (int) $followerIds->last();
         }

@@ -12,6 +12,10 @@ class Post extends Model
 {
     use HasFactory;
 
+    public const TABLE = 'posts';
+
+    protected $table = self::TABLE;
+
     protected $fillable = [
         'user_id',
         'content',
@@ -27,12 +31,13 @@ class Post extends Model
 
     public function scopeWithLikeSummaryFor(Builder $query, int $userId): Builder
     {
+        $postTable = self::TABLE;
+        $likeTable = Like::TABLE;
+        $isLikedSql = "exists (select 1 from {$likeTable} where {$likeTable}.post_id = {$postTable}.id and {$likeTable}.user_id = ?) as is_liked";
+
         return $query
             ->withCount('likedBy as likes_count')
-            ->selectRaw(
-                'exists (select 1 from likes where likes.post_id = posts.id and likes.user_id = ?) as is_liked',
-                [$userId]
-            );
+            ->selectRaw($isLikedSql, [$userId]);
     }
 
     public function author(): BelongsTo
@@ -42,7 +47,7 @@ class Post extends Model
 
     public function likedBy(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'likes')
+        return $this->belongsToMany(User::class, Like::TABLE)
             ->withPivot('created_at');
     }
 }

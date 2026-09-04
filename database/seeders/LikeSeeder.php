@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Like;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class LikeSeeder extends Seeder
@@ -69,7 +69,7 @@ class LikeSeeder extends Seeder
             return;
         }
 
-        DB::table('likes')->insertOrIgnore($likeRows);
+        Like::query()->insertOrIgnore($likeRows);
         $likeRows = [];
     }
 }

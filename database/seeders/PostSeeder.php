@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Post;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class PostSeeder extends Seeder
 {
@@ -47,7 +47,7 @@ class PostSeeder extends Seeder
             return;
         }
 
-        DB::table('posts')->insert($postRows);
+        Post::query()->insert($postRows);
         $postRows = [];
     }
 }

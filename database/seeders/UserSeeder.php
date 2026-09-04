@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
@@ -50,7 +50,7 @@ class UserSeeder extends Seeder
             return;
         }
 
-        DB::table('users')->insert($userRows);
+        User::query()->insert($userRows);
         $userRows = [];
     }
 }

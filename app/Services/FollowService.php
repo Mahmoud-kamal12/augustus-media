@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Follow;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 class FollowService
 {
     public function follow(User $follower, User $followedUser): bool
     {
-        return DB::table('follows')->insertOrIgnore([
+        return Follow::query()->insertOrIgnore([
             'follower_id' => $follower->id,
             'followed_id' => $followedUser->id,
             'created_at' => now(),
@@ -18,7 +18,7 @@ class FollowService
 
     public function unfollow(User $follower, User $followedUser): bool
     {
-        return DB::table('follows')
+        return Follow::query()
             ->where('follower_id', $follower->id)
             ->where('followed_id', $followedUser->id)
             ->delete() > 0;
