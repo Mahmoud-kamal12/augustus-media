@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\FeedCache;
 use App\Services\FollowService;
+use App\Services\UserFeedCache;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ class FollowController extends Controller
 {
     public function __construct(
         private readonly FollowService $followService,
-        private readonly FeedCache $feedCache,
+        private readonly UserFeedCache $userFeedCache,
     ) {}
 
     public function store(Request $request, User $userToFollow): JsonResponse
@@ -28,7 +28,7 @@ class FollowController extends Controller
         }
 
         if ($this->followService->follow($currentUser, $userToFollow)) {
-            $this->feedCache->forgetFirstPage($currentUser);
+            $this->userFeedCache->forgetFirstPage($currentUser);
         }
 
         $followResponseData = [
@@ -43,7 +43,7 @@ class FollowController extends Controller
         $currentUser = $request->user();
 
         if ($this->followService->unfollow($currentUser, $userToUnfollow)) {
-            $this->feedCache->forgetFirstPage($currentUser);
+            $this->userFeedCache->forgetFirstPage($currentUser);
         }
 
         return ApiResponse::deleted('User unfollowed successfully.');

@@ -5,18 +5,18 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
-class FeedCache
+class UserFeedCache
 {
     private const FIRST_PAGE_KEY_PREFIX = 'feed:first-page:user';
 
     private const FIRST_PAGE_KEY_VERSION = 'v1';
 
-    public function firstPageFor(User $user): ?array
+    public function getFirstPage(User $user): ?array
     {
         return Cache::get($this->firstPageKey($user));
     }
 
-    public function putFirstPage(User $user, array $feedPage): void
+    public function storeFirstPage(User $user, array $feedPage): void
     {
         Cache::put($this->firstPageKey($user), $feedPage, config('feed.cache.first_page_ttl'));
     }
