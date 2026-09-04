@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\FeedRequest;
 use App\Http\Resources\FeedPageResource;
 use App\Services\FeedCache;
 use App\Services\FeedService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class FeedController extends Controller
 {
@@ -16,11 +16,20 @@ class FeedController extends Controller
         private readonly FeedCache $feedCache,
     ) {}
 
-    public function index(FeedRequest $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $perPage = $request->perPage();
-        $shouldUseFirstPageCache = $request->shouldUseFirstPageCache();
+        $feedPagination = config('feed.pagination');
+        $defaultPostsPerPage = (int) $feedPagination['default_per_page'];
+        $maximumPostsPerPage = (int) $feedPagination['max_per_page'];
+
+        $validatedData = $request->validate([
+            'per_page' => ['sometimes', 'integer', 'min:1', "max:{$maximumPostsPerPage}"],
+        ]);
+
+        $perPage = (int) ($validatedData['per_page'] ?? $defaultPostsPerPage);
+        $shouldUseFirstPageCache = ! $request->query->has('cursor')
+            && ! $request->query->has('per_page');
 
         if ($shouldUseFirstPageCache) {
             $cachedFeedPage = $this->feedCache->firstPageFor($user);
