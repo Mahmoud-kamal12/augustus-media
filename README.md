@@ -295,43 +295,7 @@ The `reverb` Docker service runs Laravel Reverb:
 ws://localhost:6001
 ```
 
-For a separate Angular frontend, install Echo and Pusher JS:
-
-```bash
-npm install laravel-echo pusher-js
-```
-
-Example Angular-side setup:
-
-```ts
-import Echo from 'laravel-echo';
-import Pusher from 'pusher-js';
-
-(window as any).Pusher = Pusher;
-
-const echo = new Echo({
-  broadcaster: 'reverb',
-  key: 'augustus-local-key',
-  wsHost: 'localhost',
-  wsPort: 6001,
-  forceTLS: false,
-  enabledTransports: ['ws'],
-  authEndpoint: 'http://localhost:8080/broadcasting/auth',
-  auth: {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-  },
-});
-
-echo.private(`users.${currentUser.id}.notifications`)
-  .listen('.new-post-notification', (notification) => {
-    console.log(notification);
-  });
-```
-
-`/broadcasting/auth` is protected by `auth:sanctum`, so Angular must send the same bearer token used for the API.
+`/broadcasting/auth` is protected by `auth:sanctum`, so realtime clients must send the same bearer token used for the API.
 
 When multiple Reverb instances are needed, `REVERB_SCALING_ENABLED=true` makes Reverb use Redis Pub/Sub internally to share connections and broadcasts across those instances.
 
