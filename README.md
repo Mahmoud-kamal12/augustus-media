@@ -265,7 +265,7 @@ Invalidation:
 
 ## Queue Notifications
 
-Post creation dispatches `NotifyFollowersOfNewPost` after the post row is created.
+Post creation dispatches `NotifyFollowersOfNewPost` after the post row is committed.
 
 The job:
 

@@ -12,7 +12,7 @@ class PostService
     {
         $post = $user->posts()->create($postData);
 
-        NotifyFollowersOfNewPost::dispatch($post->id);
+        NotifyFollowersOfNewPost::dispatch($post->id)->afterCommit();
 
         $post->likes_count = 0;
         $post->is_liked = false;
