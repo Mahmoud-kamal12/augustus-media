@@ -3,24 +3,25 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewPostNotificationBroadcasted implements ShouldBroadcast
+class NewPostNotificationBroadcasted implements ShouldBroadcastNow
 {
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        public readonly int $userId,
+        public readonly array $userIds,
         public readonly array $notification,
     ) {}
 
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel("users.{$this->userId}.notifications"),
-        ];
+        return array_map(
+            fn (int $userId): PrivateChannel => new PrivateChannel("users.{$userId}.notifications"),
+            $this->userIds,
+        );
     }
 
     public function broadcastAs(): string

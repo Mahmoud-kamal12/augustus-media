@@ -9,12 +9,20 @@ class NewPostNotificationBroadcaster
 {
     public function broadcastToFollowers(Collection $followerIds, array $notificationPayload): void
     {
-        if (! config('feed.notifications.socket_enabled')) {
+        if (! config('feed.notifications.broadcast_enabled')) {
             return;
         }
 
-        foreach ($followerIds as $followerId) {
-            NewPostNotificationBroadcasted::dispatch((int) $followerId, $notificationPayload);
+        if ($followerIds->isEmpty()) {
+            return;
         }
+
+        $followerUserIds = [];
+
+        foreach ($followerIds as $followerId) {
+            $followerUserIds[] = (int) $followerId;
+        }
+
+        NewPostNotificationBroadcasted::dispatch($followerUserIds, $notificationPayload);
     }
 }

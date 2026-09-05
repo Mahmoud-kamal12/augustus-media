@@ -11,7 +11,8 @@ The implementation focuses on the required domain only: users can register, logi
 - Redis for cache and queue
 - Laravel Sanctum bearer tokens
 - Nginx reverse proxy
-- Docker Compose with app, nginx, mysql, redis, queue, and DbGate services
+- Laravel Reverb for WebSocket broadcasting
+- Docker Compose with app, nginx, mysql, redis, queue, reverb, and DbGate services
 
 ## Quick Start
 
@@ -39,6 +40,12 @@ Local database UI:
 
 ```text
 DbGate: http://localhost:8081
+```
+
+Local Reverb WebSocket endpoint:
+
+```text
+ws://localhost:6001
 ```
 
 DbGate login:
@@ -144,7 +151,7 @@ per_page: 1..50, default 20
 cursor: returned by meta.next_cursor or meta.previous_cursor
 ```
 
-Feed pagination defaults, cache TTLs, notification chunk size, retry count, and socket toggle live in `config/feed.php`.
+Feed pagination defaults, cache TTLs, notification chunk size, retry count, and broadcast toggle live in `config/feed.php`.
 
 Successful controller responses use the same envelope:
 
@@ -266,15 +273,67 @@ The job:
 - Inserts database notifications in bulk.
 - Uses deterministic notification ids derived from `(post_id, follower_id)` so retries are idempotent.
 - Uses the `(followed_id, follower_id)` index to avoid scanning the full follows table.
-- Broadcasts a socket event only when `feed.notifications.socket_enabled` is `true`.
+- Broadcasts a Reverb event only when `feed.notifications.broadcast_enabled` is `true`.
 
-Socket broadcasting is off by default:
+Realtime broadcasting is off by default:
 
 ```text
-NOTIFICATION_SOCKET_ENABLED=false
+NOTIFICATION_BROADCAST_ENABLED=false
 ```
 
-When it is enabled, the job stores the database notification first, then dispatches `NewPostNotificationBroadcasted` to the private channel `users.{id}.notifications`. Channel authorization is defined in `routes/channels.php`, so a user can only subscribe to their own notification channel.
+When it is enabled, the job stores the database notification first, then dispatches `NewPostNotificationBroadcasted`.
+
+The event:
+
+- Broadcasts once per follower chunk.
+- Sends the same payload to each private channel `users.{id}.notifications`.
+- Uses Laravel channel authorization in `routes/channels.php`, so a user can only subscribe to their own notification channel.
+
+The `reverb` Docker service runs Laravel Reverb:
+
+```text
+ws://localhost:6001
+```
+
+For a separate Angular frontend, install Echo and Pusher JS:
+
+```bash
+npm install laravel-echo pusher-js
+```
+
+Example Angular-side setup:
+
+```ts
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+
+(window as any).Pusher = Pusher;
+
+const echo = new Echo({
+  broadcaster: 'reverb',
+  key: 'augustus-local-key',
+  wsHost: 'localhost',
+  wsPort: 6001,
+  forceTLS: false,
+  enabledTransports: ['ws'],
+  authEndpoint: 'http://localhost:8080/broadcasting/auth',
+  auth: {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  },
+});
+
+echo.private(`users.${currentUser.id}.notifications`)
+  .listen('.new-post-notification', (notification) => {
+    console.log(notification);
+  });
+```
+
+`/broadcasting/auth` is protected by `auth:sanctum`, so Angular must send the same bearer token used for the API.
+
+When multiple Reverb instances are needed, `REVERB_SCALING_ENABLED=true` makes Reverb use Redis Pub/Sub internally to share connections and broadcasts across those instances.
 
 ## Local Query Plan Notes
 

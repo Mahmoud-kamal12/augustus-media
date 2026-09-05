@@ -13,6 +13,6 @@ return [
     'notifications' => [
         'chunk_size' => (int) env('NOTIFICATION_CHUNK_SIZE', 1000),
         'tries' => (int) env('NOTIFICATION_JOB_TRIES', 3),
-        'socket_enabled' => filter_var(env('NOTIFICATION_SOCKET_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'broadcast_enabled' => filter_var(env('NOTIFICATION_BROADCAST_ENABLED', false), FILTER_VALIDATE_BOOL),
     ],
 ];

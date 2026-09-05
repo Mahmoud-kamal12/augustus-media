@@ -25,6 +25,7 @@ class FeedApiTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+        config()->set('feed.notifications.broadcast_enabled', false);
     }
 
     public function test_user_can_register_and_login(): void
@@ -371,9 +372,9 @@ class FeedApiTest extends TestCase
         Event::assertNotDispatched(NewPostNotificationBroadcasted::class);
     }
 
-    public function test_notification_job_broadcasts_when_socket_is_enabled(): void
+    public function test_notification_job_broadcasts_one_event_per_follower_chunk_when_enabled(): void
     {
-        config()->set('feed.notifications.socket_enabled', true);
+        config()->set('feed.notifications.broadcast_enabled', true);
 
         $author = User::factory()->create();
         $followers = User::factory()->count(2)->create();
@@ -388,9 +389,12 @@ class FeedApiTest extends TestCase
         $job = new NotifyFollowersOfNewPost($post->id);
         app()->call([$job, 'handle']);
 
-        Event::assertDispatchedTimes(NewPostNotificationBroadcasted::class, 2);
+        Event::assertDispatchedTimes(NewPostNotificationBroadcasted::class, 1);
         Event::assertDispatched(function (NewPostNotificationBroadcasted $event) use ($followers, $post): bool {
-            return $event->userId === $followers->first()->id
+            $expectedFollowerIds = $followers->pluck('id')->sort()->values()->all();
+            $actualFollowerIds = collect($event->userIds)->sort()->values()->all();
+
+            return $actualFollowerIds === $expectedFollowerIds
                 && $event->notification['post_id'] === $post->id
                 && $event->notification['author_id'] === $post->user_id;
         });

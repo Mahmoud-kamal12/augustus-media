@@ -82,6 +82,19 @@ services:
       redis:
         condition: service_started
 
+  reverb:
+    build:
+      context: .
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    restart: unless-stopped
+    volumes:
+      - .:/var/www/html
+    ports:
+      - "${VITE_REVERB_PORT:-6001}:8080"
+    depends_on:
+      redis:
+        condition: service_started
+
 volumes:
   mysql_data:
   dbgate_data:
