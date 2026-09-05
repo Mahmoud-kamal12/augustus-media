@@ -6,6 +6,7 @@ use App\Models\Follow;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
+use Database\Seeders\Support\SeedIds;
 use Illuminate\Database\Seeder;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Cache;
@@ -34,52 +35,13 @@ class DatabaseSeeder extends Seeder
     {
         Cache::flush();
 
-        $configuredUserCount = config('seeding.users');
-        $configuredPostCount = config('seeding.posts');
-        $configuredFollowCount = config('seeding.follows');
-        $configuredLikeCount = config('seeding.likes');
-        $configuredChunkSize = config('seeding.chunk_size');
-
-        $userCount = max(2, $configuredUserCount);
-        $postCount = max(1, $configuredPostCount);
-
-        $maximumFollowCount = $userCount * ($userCount - 1);
-        $maximumLikeCount = $postCount * $userCount;
-
-        $followCount = min($configuredFollowCount, $maximumFollowCount);
-        $followCount = max(0, $followCount);
-
-        $likeCount = min($configuredLikeCount, $maximumLikeCount);
-        $likeCount = max(0, $likeCount);
-
-        $insertChunkSize = max(100, $configuredChunkSize);
-
         $this->truncateSeededTables();
-
-        $this->callWith(UserSeeder::class, [
-            'userCount' => $userCount,
-            'chunkSize' => $insertChunkSize,
+        $this->call([
+            UserSeeder::class,
+            PostSeeder::class,
+            FollowSeeder::class,
+            LikeSeeder::class,
         ]);
-
-        $this->callWith(PostSeeder::class, [
-            'postCount' => $postCount,
-            'userCount' => $userCount,
-            'chunkSize' => $insertChunkSize,
-        ]);
-
-        $this->callWith(FollowSeeder::class, [
-            'userCount' => $userCount,
-            'requiredFollowCount' => $followCount,
-            'chunkSize' => $insertChunkSize,
-        ]);
-
-        $this->callWith(LikeSeeder::class, [
-            'postCount' => $postCount,
-            'userCount' => $userCount,
-            'requiredLikeCount' => $likeCount,
-            'chunkSize' => $insertChunkSize,
-        ]);
-
         $this->printSeedSummary();
     }
 
@@ -87,16 +49,18 @@ class DatabaseSeeder extends Seeder
     {
         Schema::disableForeignKeyConstraints();
 
-        foreach (self::SEEDED_MODELS as $modelClass) {
-            $model = new $modelClass;
-            $table = $model->getTable();
+        try {
+            foreach (self::SEEDED_MODELS as $modelClass) {
+                $model = new $modelClass;
+                $table = $model->getTable();
 
-            if (Schema::hasTable($table)) {
-                $modelClass::query()->truncate();
+                if (Schema::hasTable($table)) {
+                    $modelClass::query()->truncate();
+                }
             }
+        } finally {
+            Schema::enableForeignKeyConstraints();
         }
-
-        Schema::enableForeignKeyConstraints();
     }
 
     private function printSeedSummary(): void
@@ -114,5 +78,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->command->info('Demo credentials: demo@example.com / password');
+        $this->command->info('Demo user id: '.SeedIds::DEMO_USER);
+        $this->command->info('Augustus News user id: '.SeedIds::NEWS_USER);
     }
 }

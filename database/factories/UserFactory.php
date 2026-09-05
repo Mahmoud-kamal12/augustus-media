@@ -24,9 +24,25 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'name' => $this->faker->name(),
+            'email' => $this->faker->unique()->safeEmail(),
             'password' => static::$password ??= Hash::make('password'),
         ];
+    }
+
+    public function demoAccount(): static
+    {
+        return $this->state([
+            'name' => 'Demo User',
+            'email' => 'demo@example.com',
+        ]);
+    }
+
+    public function newsAccount(): static
+    {
+        return $this->state([
+            'name' => 'Augustus News',
+            'email' => 'augustus-news@example.com',
+        ]);
     }
 }

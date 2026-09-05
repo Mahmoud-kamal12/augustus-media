@@ -4,60 +4,66 @@ namespace Database\Seeders;
 
 use App\Models\Like;
 use App\Models\Post;
+use Database\Seeders\Support\SeedConfig;
+use Database\Seeders\Support\SeedIds;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class LikeSeeder extends Seeder
 {
-    private const FEATURED_POST_ID = 1;
-
     private const MINIMUM_FEATURED_POST_LIKES = 1000;
 
     private const FEATURED_POST_LIKE_RATIO = 10;
 
-    public function run(int $postCount, int $userCount, int $requiredLikeCount, int $chunkSize): void
+    public function run(): void
     {
-        if ($requiredLikeCount === 0) {
+        $postCount = SeedConfig::postCount();
+        $userCount = SeedConfig::userCount();
+        $likeCount = SeedConfig::likeCount();
+        $chunkSize = SeedConfig::chunkSize();
+
+        if ($likeCount === 0) {
             return;
         }
 
         $likeRows = [];
-        $likesCountByPostId = [];
-        $likeRowsCreated = 0;
+        $createdLikeCount = 0;
         $createdAt = now()->toDateTimeString();
-        $featuredPostLikeTargetByRatio = intdiv($requiredLikeCount, self::FEATURED_POST_LIKE_RATIO);
+        $featuredPostLikeTargetByRatio = intdiv($likeCount, self::FEATURED_POST_LIKE_RATIO);
         $featuredPostTargetLikeCount = max(self::MINIMUM_FEATURED_POST_LIKES, $featuredPostLikeTargetByRatio);
         $featuredPostLikeCount = min($userCount, $featuredPostTargetLikeCount);
+        $featuredPostLikesCreated = 0;
 
-        for ($userId = 1; $userId <= $featuredPostLikeCount && $likeRowsCreated < $requiredLikeCount; $userId++) {
-            $this->addLikeRow($likeRows, $likesCountByPostId, self::FEATURED_POST_ID, $userId, $createdAt, $chunkSize);
-            $likeRowsCreated++;
+        for ($userId = 1; $userId <= $featuredPostLikeCount && $createdLikeCount < $likeCount; $userId++) {
+            $this->addLikeRow($likeRows, SeedIds::FEATURED_POST, $userId, $createdAt, $chunkSize);
+            $createdLikeCount++;
+            $featuredPostLikesCreated++;
         }
 
-        for ($likeDistance = 1; $likeRowsCreated < $requiredLikeCount; $likeDistance++) {
+        for ($likeDistance = 1; $createdLikeCount < $likeCount; $likeDistance++) {
             if ($likeDistance > $userCount) {
                 throw new RuntimeException('Unable to generate the configured number of unique likes.');
             }
 
-            for ($postId = 1; $postId <= $postCount && $likeRowsCreated < $requiredLikeCount; $postId++) {
+            for ($postId = 1; $postId <= $postCount && $createdLikeCount < $likeCount; $postId++) {
                 $userId = (($postId + $likeDistance - 1) % $userCount) + 1;
 
-                if ($postId === self::FEATURED_POST_ID && $userId <= $featuredPostLikeCount) {
+                if ($postId === SeedIds::FEATURED_POST && $userId <= $featuredPostLikesCreated) {
                     continue;
                 }
 
-                $this->addLikeRow($likeRows, $likesCountByPostId, $postId, $userId, $createdAt, $chunkSize);
-                $likeRowsCreated++;
+                $this->addLikeRow($likeRows, $postId, $userId, $createdAt, $chunkSize);
+                $createdLikeCount++;
             }
         }
 
         $this->insertLikeRows($likeRows);
-        $this->updatePostLikeCounts($likesCountByPostId, $chunkSize);
+        $this->refreshPostLikeCounts();
     }
 
     private function addLikeRow(
         array &$likeRows,
-        array &$likesCountByPostId,
         int $postId,
         int $userId,
         string $createdAt,
@@ -68,8 +74,6 @@ class LikeSeeder extends Seeder
             'user_id' => $userId,
             'created_at' => $createdAt,
         ];
-
-        $likesCountByPostId[$postId] = ($likesCountByPostId[$postId] ?? 0) + 1;
 
         if (count($likeRows) >= $chunkSize) {
             $this->insertLikeRows($likeRows);
@@ -86,24 +90,13 @@ class LikeSeeder extends Seeder
         $likeRows = [];
     }
 
-    private function updatePostLikeCounts(array $likesCountByPostId, int $chunkSize): void
+    private function refreshPostLikeCounts(): void
     {
-        if ($likesCountByPostId === []) {
-            return;
-        }
+        $postTable = Post::TABLE;
+        $likeTable = Like::TABLE;
 
-        $postIdsByLikesCount = [];
-
-        foreach ($likesCountByPostId as $postId => $likesCount) {
-            $postIdsByLikesCount[$likesCount][] = $postId;
-        }
-
-        foreach ($postIdsByLikesCount as $likesCount => $postIds) {
-            foreach (array_chunk($postIds, $chunkSize) as $postIdsChunk) {
-                Post::query()
-                    ->whereIn('id', $postIdsChunk)
-                    ->update(['likes_count' => $likesCount]);
-            }
-        }
+        Post::query()->update([
+            'likes_count' => DB::raw("(select count(*) from {$likeTable} where {$likeTable}.post_id = {$postTable}.id)"),
+        ]);
     }
 }

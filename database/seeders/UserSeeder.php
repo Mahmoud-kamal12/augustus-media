@@ -3,38 +3,26 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use Database\Seeders\Support\SeedConfig;
+use Database\Seeders\Support\SeedIds;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
-    private const DEMO_USER_ID = 1;
-
-    private const NEWS_USER_ID = 2;
-
-    public function run(int $userCount, int $chunkSize): void
+    public function run(): void
     {
+        $userCount = SeedConfig::userCount();
+        $chunkSize = SeedConfig::chunkSize();
         $password = Hash::make('password');
         $createdAt = now()->toDateTimeString();
         $userRows = [];
 
         for ($userId = 1; $userId <= $userCount; $userId++) {
-            $name = match ($userId) {
-                self::DEMO_USER_ID => 'Demo User',
-                self::NEWS_USER_ID => 'Augustus News',
-                default => "User {$userId}",
-            };
-
-            $email = match ($userId) {
-                self::DEMO_USER_ID => 'demo@example.com',
-                self::NEWS_USER_ID => 'augustus-news@example.com',
-                default => "user{$userId}@example.com",
-            };
-
             $userRows[] = [
                 'id' => $userId,
-                'name' => $name,
-                'email' => $email,
+                'name' => $this->nameFor($userId),
+                'email' => $this->emailFor($userId),
                 'password' => $password,
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
@@ -56,5 +44,23 @@ class UserSeeder extends Seeder
 
         User::query()->insert($userRows);
         $userRows = [];
+    }
+
+    private function nameFor(int $userId): string
+    {
+        return match ($userId) {
+            SeedIds::DEMO_USER => 'Demo User',
+            SeedIds::NEWS_USER => 'Augustus News',
+            default => "User {$userId}",
+        };
+    }
+
+    private function emailFor(int $userId): string
+    {
+        return match ($userId) {
+            SeedIds::DEMO_USER => 'demo@example.com',
+            SeedIds::NEWS_USER => 'augustus-news@example.com',
+            default => "user{$userId}@example.com",
+        };
     }
 }

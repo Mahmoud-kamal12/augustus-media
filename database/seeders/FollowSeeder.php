@@ -3,57 +3,54 @@
 namespace Database\Seeders;
 
 use App\Models\Follow;
+use Database\Seeders\Support\SeedConfig;
+use Database\Seeders\Support\SeedIds;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
 class FollowSeeder extends Seeder
 {
-    private const DEMO_USER_ID = 1;
-
-    private const NEWS_USER_ID = 2;
-
-    private const FIRST_REGULAR_USER_ID = 3;
-
     private const MAX_DEMO_FOLLOWED_USERS = 250;
 
-    public function run(int $userCount, int $requiredFollowCount, int $chunkSize): void
+    public function run(): void
     {
-        if ($requiredFollowCount === 0) {
+        $userCount = SeedConfig::userCount();
+        $followCount = SeedConfig::followCount();
+        $chunkSize = SeedConfig::chunkSize();
+
+        if ($followCount === 0) {
             return;
         }
 
         $followRows = [];
-        $createdFollowPairs = [];
-        $followRowsCreated = 0;
+        $createdFollowCount = 0;
         $createdAt = now()->toDateTimeString();
-        $lastDemoFollowedUserId = min($userCount, self::MAX_DEMO_FOLLOWED_USERS + 1);
+        $lastDemoFollowedUserId = min($userCount, SeedIds::DEMO_USER + self::MAX_DEMO_FOLLOWED_USERS);
 
-        for ($followedUserId = self::NEWS_USER_ID; $followedUserId <= $lastDemoFollowedUserId && $followRowsCreated < $requiredFollowCount; $followedUserId++) {
-            $this->addFollowRow($followRows, self::DEMO_USER_ID, $followedUserId, $createdAt, $chunkSize);
-            $createdFollowPairs[self::DEMO_USER_ID][$followedUserId] = true;
-            $followRowsCreated++;
+        for ($followedUserId = SeedIds::NEWS_USER; $followedUserId <= $lastDemoFollowedUserId && $createdFollowCount < $followCount; $followedUserId++) {
+            $this->addFollowRow($followRows, SeedIds::DEMO_USER, $followedUserId, $createdAt, $chunkSize);
+            $createdFollowCount++;
         }
 
-        for ($followerUserId = self::FIRST_REGULAR_USER_ID; $followerUserId <= $userCount && $followRowsCreated < $requiredFollowCount; $followerUserId++) {
-            $this->addFollowRow($followRows, $followerUserId, self::NEWS_USER_ID, $createdAt, $chunkSize);
-            $createdFollowPairs[$followerUserId][self::NEWS_USER_ID] = true;
-            $followRowsCreated++;
+        for ($followerUserId = SeedIds::FIRST_REGULAR_USER; $followerUserId <= $userCount && $createdFollowCount < $followCount; $followerUserId++) {
+            $this->addFollowRow($followRows, $followerUserId, SeedIds::NEWS_USER, $createdAt, $chunkSize);
+            $createdFollowCount++;
         }
 
-        for ($followDistance = 1; $followRowsCreated < $requiredFollowCount; $followDistance++) {
+        for ($followDistance = 1; $createdFollowCount < $followCount; $followDistance++) {
             if ($followDistance >= $userCount) {
                 throw new RuntimeException('Unable to generate the configured number of unique follows.');
             }
 
-            for ($followerUserId = 1; $followerUserId <= $userCount && $followRowsCreated < $requiredFollowCount; $followerUserId++) {
+            for ($followerUserId = 1; $followerUserId <= $userCount && $createdFollowCount < $followCount; $followerUserId++) {
                 $followedUserId = (($followerUserId + $followDistance - 1) % $userCount) + 1;
 
-                if (isset($createdFollowPairs[$followerUserId][$followedUserId])) {
+                if ($this->shouldSkipFollowPair($followerUserId, $followedUserId, $lastDemoFollowedUserId)) {
                     continue;
                 }
 
                 $this->addFollowRow($followRows, $followerUserId, $followedUserId, $createdAt, $chunkSize);
-                $followRowsCreated++;
+                $createdFollowCount++;
             }
         }
 
@@ -86,5 +83,18 @@ class FollowSeeder extends Seeder
 
         Follow::query()->insertOrIgnore($followRows);
         $followRows = [];
+    }
+
+    private function shouldSkipFollowPair(int $followerUserId, int $followedUserId, int $lastDemoFollowedUserId): bool
+    {
+        if ($followerUserId === $followedUserId) {
+            return true;
+        }
+
+        if ($followerUserId === SeedIds::DEMO_USER && $followedUserId >= SeedIds::NEWS_USER && $followedUserId <= $lastDemoFollowedUserId) {
+            return true;
+        }
+
+        return $followerUserId >= SeedIds::FIRST_REGULAR_USER && $followedUserId === SeedIds::NEWS_USER;
     }
 }

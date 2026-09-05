@@ -306,6 +306,10 @@ class FeedApiTest extends TestCase
         $storedLikesCount = Post::query()->sum('likes_count');
         $likesCount = Like::query()->count();
 
+        $this->assertSame(10, User::query()->count());
+        $this->assertSame(20, Post::query()->count());
+        $this->assertSame(30, Follow::query()->count());
+        $this->assertSame(40, $likesCount);
         $this->assertSame($likesCount, (int) $storedLikesCount);
     }
 
