@@ -114,7 +114,7 @@ per_page: 1..50, default 20
 cursor: returned by meta.next_cursor or meta.previous_cursor
 ```
 
-Feed pagination defaults and cache TTLs live in `config/feed.php`.
+Feed pagination defaults, cache TTLs, notification chunk size, retry count, and socket toggle live in `config/feed.php`.
 
 Successful controller responses use the same envelope:
 
@@ -129,7 +129,7 @@ Successful controller responses use the same envelope:
 
 Validation, auth, authorization, and not-found API errors use the same response family with `success: false` and an `errors` object when field errors exist.
 
-`likes_count` and `is_liked` are query attributes returned from the current database state through the `withLikeSummaryFor` post scope.
+`likes_count` is stored on the post row and kept current by a `LikeObserver`. `is_liked` is added for the current viewer with one batched lookup for the returned page, not with one query per post.
 
 Example feed response:
 
@@ -168,9 +168,10 @@ Example feed response:
 
 `posts`
 
-- `id`, `user_id`, `content`, timestamps.
+- `id`, `user_id`, `content`, `likes_count`, timestamps.
 - Foreign key `user_id -> users.id`.
 - Composite index `(user_id, created_at, id)` supports fetching posts for followed authors in reverse chronological order.
+- `likes_count` is denormalized to avoid counting likes during feed reads.
 
 `follows`
 
@@ -181,8 +182,8 @@ Example feed response:
 `likes`
 
 - `post_id`, `user_id`, `created_at`.
-- Composite primary key `(post_id, user_id)` prevents duplicate likes and supports batched like counts by post.
-- MySQL's foreign key index on `user_id` is used for batched "did current user like these posts?" lookups.
+- Composite primary key `(post_id, user_id)` prevents duplicate likes and supports deleting or checking one user's like for one post.
+- Composite index `(user_id, post_id)` supports the feed page lookup for "which of these posts did the current user like?"
 
 `notifications`
 
@@ -190,13 +191,16 @@ Example feed response:
 
 ## Feed Design
 
-This version uses fan-out on read:
+This version uses fan-out on read and avoids a large join in the application query by filtering posts with a followed-users subquery:
 
 ```sql
 SELECT posts.*
 FROM posts
-JOIN follows ON follows.followed_id = posts.user_id
-WHERE follows.follower_id = ?
+WHERE posts.user_id IN (
+    SELECT follows.followed_id
+    FROM follows
+    WHERE follows.follower_id = ?
+)
 ORDER BY posts.created_at DESC, posts.id DESC
 LIMIT ?
 ```
@@ -206,20 +210,21 @@ The API uses cursor pagination instead of offset pagination. This avoids deep-pa
 N+1 prevention:
 
 - Authors are eager loaded with `author:id,name`.
-- Like counts and the current user's liked state are selected with Eloquent aggregate/existence attributes.
+- `likes_count` is read directly from `posts.likes_count`.
+- The current user's liked state is loaded with one `likes where user_id = ? and post_id in (...)` query for the page.
 
 ## Caching
 
 Redis cache is used for:
 
-- Default first feed page: `feed:first-page:user:{id}:v1`, 30 second TTL.
+- First feed page per user and page size: `feed:first-page:user:{id}:per-page:{n}:v{version}`, 30 second TTL by default.
 
 Invalidation:
 
-- Like summaries are selected with the feed query. The first page response cache covers the hottest read path without maintaining one Redis key per post.
-- `like` and `unlike` forget the current user's first feed page because `is_liked` changes.
-- `follow` and `unfollow` forget the current user's first feed page because membership changes.
-- New posts do not invalidate every follower's feed cache. At high scale that becomes expensive, so follower feeds rely on the short TTL unless a future fan-out-on-write feed table is introduced.
+- The first page response cache covers the hottest read path without maintaining one Redis key per post.
+- `like` and `unlike` forget the current user's first feed page because `is_liked` changes for that viewer.
+- `follow` and `unfollow` forget the current user's first feed page because feed membership changes.
+- New posts do not invalidate every follower's feed cache. At high scale that fan-out invalidation is expensive, so this version uses a short TTL unless a future fan-out-on-write feed table is introduced.
 
 ## Queue Notifications
 
@@ -231,6 +236,15 @@ The job:
 - Inserts database notifications in bulk.
 - Uses deterministic notification ids derived from `(post_id, follower_id)` so retries are idempotent.
 - Uses the `(followed_id, follower_id)` index to avoid scanning the full follows table.
+- Broadcasts a socket event only when `feed.notifications.socket_enabled` is `true`.
+
+Socket broadcasting is off by default:
+
+```text
+NOTIFICATION_SOCKET_ENABLED=false
+```
+
+When it is enabled, the job stores the database notification first, then dispatches `NewPostNotificationBroadcasted` to the private channel `users.{id}.notifications`. Channel authorization is defined in `routes/channels.php`, so a user can only subscribe to their own notification channel.
 
 ## Local Query Plan Notes
 
@@ -255,8 +269,9 @@ actual time: about 31.1 ms
 Like summary attributes for 20 feed posts:
 
 ```text
-selected through indexed `likedBy` count and exists subqueries
-no Redis round trip and no PHP-side like summary loop
+likes_count is already on the posts row
+is_liked uses one indexed likes lookup for the 20 post ids
+no Redis round trip and no per-post query
 ```
 
 These numbers are good enough for the assignment implementation. The feed query still performs a top-N sort across candidate posts from followed users, which is the expected trade-off for fan-out on read.
@@ -266,21 +281,54 @@ These numbers are good enough for the assignment implementation. The feed query 
 - No microservices: the task is about relational feed design, query planning, cache strategy, and Laravel code quality.
 - No precomputed feed table in the first version: fan-out on read keeps writes simple and avoids storage amplification before it is proven necessary.
 - No per-post like-count cache: the extra Redis reads/writes are not worth it for a cursor page capped at 50 posts, especially while the first feed page is already cached.
-- No denormalized `likes_count` on `posts`: it would turn viral posts into hot write rows.
+- Denormalized `likes_count` on `posts` is used deliberately to keep feed reads fast. Very hot posts may need approximate counters or buffered counter updates later.
 - No extra database indexes beyond the measured access paths: redundant indexes slow writes and increase storage.
 - No cache entry for every cursor page: the first page carries the highest repeated-read value.
 - No complex distributed cache locks yet: one cached first page per user is enough for this scope.
 
-## Scaling Path
+## Performance Challenge: 5M Users and 500k Posts/Day
 
 For the stated 5M users and 500k posts/day target, this code is a clean starting point rather than the final production architecture.
 
-Next steps at scale:
+How feed generation should scale:
+
+- Keep the current fan-out-on-read query for the first version because it is simple, consistent, and works well for normal follow counts.
+- Move to a hybrid feed once query cost grows: fan-out-on-write normal authors into a `feed_items` table or Redis sorted set, but keep celebrity/high-follower authors on fan-out-on-read and merge them into the page at read time.
+- For a `feed_items` table, use `(user_id, created_at, post_id)` as the main read index. Queue workers would fill it from the follower chunks already supported by `(followed_id, follower_id)`.
+- Keep cursor pagination everywhere. Offset pagination should not be used for deep pages because it forces the database to scan and discard rows.
+- Keep feed reads on read replicas once write traffic grows.
+
+How to avoid slow queries:
+
+- Select only the fields needed for API responses.
+- Keep author eager loading, and never resolve authors inside a loop.
+- Keep `is_liked` as one indexed lookup per returned page.
+- Keep like counts on the `posts` row instead of running `COUNT(*)` for every feed page.
+- Use `EXPLAIN ANALYZE` on the feed query with realistic follow/post distributions, not only small local data.
+
+Indexes to keep or add:
+
+- Current: `posts(user_id, created_at, id)` for followed-author post lookup.
+- Current: `follows(follower_id, followed_id)` primary key for feed membership.
+- Current: `follows(followed_id, follower_id)` for notification and future feed fan-out.
+- Current: `likes(post_id, user_id)` primary key for uniqueness.
+- Current: `likes(user_id, post_id)` for current-viewer liked-state lookup.
+- Future feed table: `feed_items(user_id, created_at, post_id)`.
+- Future notification listing endpoint: `notifications(notifiable_type, notifiable_id, read_at, created_at)`.
+
+When caching should be used:
+
+- Cache the first feed page because it is the hottest repeated read.
+- Keep the TTL short while using fan-out-on-read, so new posts and like counts are not stale for long.
+- Do not cache every cursor page by default. Long-tail pages have lower reuse and create avoidable Redis churn.
+- Add per-user feed materialization cache only when read traffic proves the database query is the bottleneck.
+- Avoid invalidating every follower's cache on every new post; that turns one write into millions of cache operations for large accounts.
+
+Other scale steps:
 
 - Add read replicas for feed and post reads.
 - Move Redis to a managed cluster and add observability around hit rate and hot keys.
 - Split queue workers by priority, with separate lanes for notifications and any future feed materialization work.
-- Introduce a hybrid feed model: fan-out on write for normal users into a `feed_items` table or Redis sorted set, while keeping fan-out on read for celebrity accounts with very high follower counts.
 - Partition or shard high-growth tables such as `posts`, `likes`, and `notifications` by time or id range when single-node indexes no longer fit memory.
 - Add backpressure and rate limits for high-volume authors and like storms.
 - Store approximate counters for extremely hot posts, periodically reconciled from the authoritative likes table.
