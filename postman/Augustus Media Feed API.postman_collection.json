@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "35f0e746-601f-4bb6-8e73-4a2f2e4b5238",
     "name": "Augustus Media Feed API",
-    "description": "Postman collection for the Augustus Media Laravel feed API. Import the local environment, run Login Demo to set the bearer token, then exercise feed, follow, post, and like endpoints.",
+    "description": "Postman collection for the Augustus Media Laravel feed API. No separate Postman environment is required; collection variables include the base URL, auth token, cursor, and reusable ids.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -48,6 +48,16 @@
       "type": "string"
     },
     {
+      "key": "current_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "current_user_email",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "user_id",
       "value": "2",
       "type": "string"
@@ -88,7 +98,6 @@
                   "function setVar(key, value) {",
                   "    if (value === undefined || value === null) return;",
                   "    pm.collectionVariables.set(key, String(value));",
-                  "    if (pm.environment.name) pm.environment.set(key, String(value));",
                   "}",
                   "setVar(\"token\", json.data && json.data.token);",
                   "setVar(\"current_user_id\", json.data && json.data.user && json.data.user.id);",
@@ -145,7 +154,6 @@
                   "function setVar(key, value) {",
                   "    if (value === undefined || value === null) return;",
                   "    pm.collectionVariables.set(key, String(value));",
-                  "    if (pm.environment.name) pm.environment.set(key, String(value));",
                   "}",
                   "setVar(\"token\", json.data && json.data.token);",
                   "setVar(\"current_user_id\", json.data && json.data.user && json.data.user.id);",
@@ -228,7 +236,6 @@
                   "function setVar(key, value) {",
                   "    if (value === undefined || value === null) return;",
                   "    pm.collectionVariables.set(key, String(value));",
-                  "    if (pm.environment.name) pm.environment.set(key, String(value));",
                   "}",
                   "setVar(\"cursor\", json.meta && json.meta.next_cursor);",
                   "if (json.data && json.data.length > 0) setVar(\"post_id\", json.data[0].id);"
@@ -347,7 +354,6 @@
                   "function setVar(key, value) {",
                   "    if (value === undefined || value === null) return;",
                   "    pm.collectionVariables.set(key, String(value));",
-                  "    if (pm.environment.name) pm.environment.set(key, String(value));",
                   "}",
                   "setVar(\"post_id\", json.data && json.data.id);"
                 ]

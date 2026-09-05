@@ -75,14 +75,13 @@ augustus-news@example.com / password
 
 ## Postman
 
-Import these files into Postman:
+Import this file into Postman:
 
 ```text
 postman/Augustus Media Feed API.postman_collection.json
-postman/Augustus Local.postman_environment.json
 ```
 
-Select the `Augustus Local` environment, then run `Auth / Login Demo` to store the bearer token automatically.
+No separate Postman environment is required. The collection stores `base_url`, `token`, `post_id`, `cursor`, and other reusable values in collection variables. Run `Auth / Login Demo` to store the bearer token automatically.
 
 ## Tests
 
