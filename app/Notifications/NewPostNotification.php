@@ -20,10 +20,10 @@ class NewPostNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        return self::databaseData($this->post);
+        return self::payloadForPost($this->post);
     }
 
-    public static function databaseData(Post $post): array
+    public static function payloadForPost(Post $post): array
     {
         $authorName = $post->author ? $post->author->name : null;
         $contentPreview = Str::limit($post->content, 120);

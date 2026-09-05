@@ -4,11 +4,11 @@ namespace App\Jobs;
 
 use App\Models\Follow;
 use App\Models\Post;
-use App\Models\User;
 use App\Notifications\NewPostNotification;
+use App\Services\NewPostNotificationBroadcaster;
+use App\Services\NewPostNotificationStore;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Notifications\DatabaseNotification;
 
 class NotifyFollowersOfNewPost implements ShouldQueue
 {
@@ -21,8 +21,10 @@ class NotifyFollowersOfNewPost implements ShouldQueue
         return config('feed.notifications.tries');
     }
 
-    public function handle(): void
-    {
+    public function handle(
+        NewPostNotificationStore $notificationStore,
+        NewPostNotificationBroadcaster $notificationBroadcaster,
+    ): void {
         $post = Post::query()
             ->with('author:id,name')
             ->find($this->postId);
@@ -31,8 +33,7 @@ class NotifyFollowersOfNewPost implements ShouldQueue
             return;
         }
 
-        $notificationData = NewPostNotification::databaseData($post);
-        $notificationDataJson = json_encode($notificationData, JSON_THROW_ON_ERROR);
+        $notificationPayload = NewPostNotification::payloadForPost($post);
         $lastFollowerId = 0;
 
         while (true) {
@@ -47,37 +48,10 @@ class NotifyFollowersOfNewPost implements ShouldQueue
                 return;
             }
 
-            $createdAt = now()->toDateTimeString();
-            $notificationRows = [];
-
-            foreach ($followerIds as $followerId) {
-                $notificationRows[] = [
-                    'id' => $this->notificationId($post->id, $followerId),
-                    'type' => NewPostNotification::class,
-                    'notifiable_type' => User::class,
-                    'notifiable_id' => $followerId,
-                    'data' => $notificationDataJson,
-                    'read_at' => null,
-                    'created_at' => $createdAt,
-                    'updated_at' => $createdAt,
-                ];
-            }
-
-            DatabaseNotification::query()->insertOrIgnore($notificationRows);
+            $notificationStore->storeForFollowers($post, $followerIds, $notificationPayload);
+            $notificationBroadcaster->broadcastToFollowers($followerIds, $notificationPayload);
 
             $lastFollowerId = (int) $followerIds->last();
         }
-    }
-
-    private function notificationId(int $postId, int $followerId): string
-    {
-        $hash = md5("new-post:{$postId}:{$followerId}");
-        $firstPart = substr($hash, 0, 8);
-        $secondPart = substr($hash, 8, 4);
-        $thirdPart = substr($hash, 12, 4);
-        $fourthPart = substr($hash, 16, 4);
-        $lastPart = substr($hash, 20);
-
-        return "{$firstPart}-{$secondPart}-{$thirdPart}-{$fourthPart}-{$lastPart}";
     }
 }

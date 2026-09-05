@@ -2,14 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Events\NewPostNotificationBroadcasted;
 use App\Jobs\NotifyFollowersOfNewPost;
 use App\Models\Follow;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
+use App\Notifications\NewPostNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -347,18 +350,46 @@ class FeedApiTest extends TestCase
             $this->follow($follower, $author);
         }
 
+        Event::fake([NewPostNotificationBroadcasted::class]);
+
         $firstJobRun = new NotifyFollowersOfNewPost($post->id);
-        $firstJobRun->handle();
+        app()->call([$firstJobRun, 'handle']);
 
         $secondJobRun = new NotifyFollowersOfNewPost($post->id);
-        $secondJobRun->handle();
+        app()->call([$secondJobRun, 'handle']);
 
         $this->assertDatabaseCount(DatabaseNotification::class, 2);
         $this->assertDatabaseHas(DatabaseNotification::class, [
             'notifiable_type' => User::class,
             'notifiable_id' => $followers->first()->id,
-            'type' => 'App\\Notifications\\NewPostNotification',
+            'type' => NewPostNotification::class,
         ]);
+        Event::assertNotDispatched(NewPostNotificationBroadcasted::class);
+    }
+
+    public function test_notification_job_broadcasts_when_socket_is_enabled(): void
+    {
+        config()->set('feed.notifications.socket_enabled', true);
+
+        $author = User::factory()->create();
+        $followers = User::factory()->count(2)->create();
+        $post = Post::factory()->for($author, 'author')->create();
+
+        foreach ($followers as $follower) {
+            $this->follow($follower, $author);
+        }
+
+        Event::fake([NewPostNotificationBroadcasted::class]);
+
+        $job = new NotifyFollowersOfNewPost($post->id);
+        app()->call([$job, 'handle']);
+
+        Event::assertDispatchedTimes(NewPostNotificationBroadcasted::class, 2);
+        Event::assertDispatched(function (NewPostNotificationBroadcasted $event) use ($followers, $post): bool {
+            return $event->userId === $followers->first()->id
+                && $event->notification['post_id'] === $post->id
+                && $event->notification['author_id'] === $post->user_id;
+        });
     }
 
     private function follow(User $follower, User $author): void
