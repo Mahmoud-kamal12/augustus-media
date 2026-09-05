@@ -11,7 +11,7 @@ The implementation focuses on the required domain only: users can register, logi
 - Redis for cache and queue
 - Laravel Sanctum bearer tokens
 - Nginx reverse proxy
-- Docker Compose with app, nginx, mysql, redis, and queue services
+- Docker Compose with app, nginx, mysql, redis, queue, phpMyAdmin, and Redis Commander services
 
 ## Quick Start
 
@@ -33,6 +33,22 @@ The API runs at:
 
 ```text
 http://localhost:8080
+```
+
+Local database tools:
+
+```text
+phpMyAdmin:      http://localhost:8081
+Redis Commander: http://localhost:8082
+```
+
+phpMyAdmin uses the local Docker MySQL credentials:
+
+```text
+server: mysql
+username: augustus
+password: secret
+database: augustus
 ```
 
 Default seed credentials:
